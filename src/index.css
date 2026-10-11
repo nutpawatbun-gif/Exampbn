@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+:root {
+  --mcu-primary: #c2185b;
+  --mcu-primary-gradient: linear-gradient(135deg, #ec407a 0%, #ab47bc 100%);
+  --mcu-secondary: #880e4f;
+  --mcu-accent: #ffca28;
+  --mcu-bg-color: #f3e5f5;
+  --mcu-text-main: #4a148c;
+  --mcu-text-light: #7b1fa2;
+  --mcu-input-bg: #fce4ec;
+  --mcu-shadow: 0 15px 35px rgba(171, 71, 188, 0.15), 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+.animate-wiggle {
+  animation: wiggle 0.4s ease-in-out;
+}
+
+/* MCU ExamCheck Theme Classes */
+.bg-mcu-page {
+  background-color: #f3e5f5;
+  background-image: 
+    radial-gradient(at 10% 10%, rgba(236, 64, 122, 0.15) 0px, transparent 50%),
+    radial-gradient(at 90% 90%, rgba(123, 31, 162, 0.15) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+.btn-mcu-primary {
+  background: linear-gradient(135deg, #ec407a 0%, #ab47bc 100%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 20px rgba(233, 30, 99, 0.28);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-mcu-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transition: 0.5s;
+}
+
+.btn-mcu-primary:hover::after {
+  left: 100%;
+}
+
+.btn-mcu-primary:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 30px rgba(233, 30, 99, 0.38);
+}
+
+.btn-mcu-primary:active:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn-mcu-success {
+  background: linear-gradient(135deg, #43a047 0%, #66bb6a 100%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 18px rgba(76, 175, 80, 0.3);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-mcu-success:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(76, 175, 80, 0.4);
+}
+
+.btn-mcu-pill {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, #42a5f5, #1976d2);
+  color: white;
+  border-radius: 9999px;
+  box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);
+  transition: all 0.25s ease;
+}
+
+.btn-mcu-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(33, 150, 243, 0.4);
+}
+
+.text-gradient-mcu {
+  background: linear-gradient(135deg, #ec407a 0%, #ab47bc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
