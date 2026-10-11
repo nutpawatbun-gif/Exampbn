@@ -85,9 +85,72 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
         </div>
       </div>
 
-      {/* 7-Column Official Data Table */}
+      {/* 7-Column Official Data Table & Mobile Responsive Cards */}
       <div className="bg-white/95 backdrop-blur-md rounded-[24px] border border-white/60 shadow-[0_15px_35px_rgba(171,71,188,0.12),0_5px_15px_rgba(0,0,0,0.04)] overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile View (< md) */}
+        <div className="md:hidden divide-y divide-purple-100">
+          {submissions.length === 0 ? (
+            <div className="py-12 px-4 text-center text-slate-500">
+              <FileSpreadsheet className="w-10 h-10 text-purple-300 mx-auto mb-2" />
+              <p className="font-bold text-[#4a148c] text-sm">
+                ยังไม่มีรายการส่งคืนใบกรอกเกรดในระบบ
+              </p>
+              <p className="text-xs text-[#7b1fa2]/70 mt-1">
+                เมื่ออาจารย์อัปโหลดใบเกรดผ่านระบบ รายการและสถานะจะปรากฏทันที
+              </p>
+              <button
+                type="button"
+                onClick={onBackToSubmit}
+                className="mt-4 px-4 py-2 rounded-full btn-mcu-primary text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>คลิกเพื่อส่งคืนใบเกรดตอนนี้</span>
+              </button>
+            </div>
+          ) : (
+            submissions.map((item, idx) => (
+              <div key={`m-sub-${item.id}`} className="p-4 bg-white">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-[#7b1fa2] font-semibold">
+                      #{idx + 1}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-purple-100 text-[#4a148c] font-bold text-[10px] border border-purple-200">
+                      {item.year}
+                    </span>
+                  </div>
+                  <span className="font-mono font-bold text-[#c2185b] text-xs">
+                    {item.subjectCode}
+                  </span>
+                </div>
+
+                <h3 className="font-bold text-slate-900 text-xs leading-snug">
+                  {item.subjectName}
+                </h3>
+                <p className="text-[11px] text-[#7b1fa2]/80 mt-0.5">
+                  {item.department}
+                </p>
+
+                <div className="mt-2.5 pt-2 border-t border-purple-50 flex items-center justify-between text-[11px]">
+                  <div>
+                    <span className="text-slate-500">ผู้สอน: </span>
+                    <span className="font-semibold text-slate-800">{item.lecturerName}</span>
+                  </div>
+                  <div className="text-slate-500">
+                    {new Date(item.submittedAt).toLocaleDateString('th-TH', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: '2-digit',
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop View (>= md) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             {/* Table Header (7 columns exactly as specified) */}
             <thead>

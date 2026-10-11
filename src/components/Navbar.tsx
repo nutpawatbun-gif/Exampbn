@@ -68,36 +68,36 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Main Navbar Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-4">
         {/* Brand / Logo */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <div
             onClick={() => onModeChange('recipient')}
-            className="flex items-center gap-3 cursor-pointer group"
+            className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group min-w-0"
           >
-            {/* Logo วิทยาลัยสงฆ์พ่อขุนผาเมือง เพชรบูรณ์ */}
-            <div className="h-12 w-12 rounded-2xl bg-white shadow-xs border border-pink-100 flex items-center justify-center p-1 shrink-0 transition-transform group-hover:scale-105">
+            {/* Logo วิทยาลัยสงฆ์พ่อขุนผาเมือง เพชรบูรณ์ (Official Pink Circle Seal) */}
+            <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl bg-white shadow-2xs border border-pink-100 flex items-center justify-center p-0.5 shrink-0 transition-transform group-hover:scale-105">
               <img
                 src="/college-logo.png"
                 alt="ตราประจำวิทยาลัยสงฆ์พ่อขุนผาเมือง เพชรบูรณ์"
-                className="h-10 w-auto object-contain"
+                className="h-10 w-10 sm:h-11 sm:w-11 object-contain drop-shadow-2xs"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
                 }}
               />
             </div>
 
-            <div className="border-l-2 border-[#ec407a]/40 pl-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-extrabold text-base sm:text-lg tracking-tight text-[#4a148c] group-hover:text-[#c2185b] transition-colors">
+            <div className="border-l-2 border-[#ec407a]/40 pl-2.5 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-extrabold text-sm sm:text-base md:text-lg tracking-tight text-[#4a148c] group-hover:text-[#c2185b] transition-colors truncate">
                   วิทยาลัยสงฆ์พ่อขุนผาเมือง เพชรบูรณ์
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#fce4ec] text-[#c2185b] border border-[#f8bbd0]">
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#fce4ec] text-[#c2185b] border border-[#f8bbd0]">
                   <ShieldCheck className="w-3 h-3 text-[#ec407a]" />
                   <span>ระบบปลอดภัย</span>
                 </span>
               </div>
-              <p className="text-xs text-[#7b1fa2] font-medium leading-tight mt-0.5">
+              <p className="text-[11px] sm:text-xs text-[#7b1fa2] font-medium leading-tight mt-0.5 truncate">
                 {lang === 'th'
                   ? 'ระบบแชร์ใบกรอกคะแนนและเอกสารการศึกษา (ไม่ต้องล็อกอิน)'
                   : 'Zero-Login Academic Document & Score Sheet Portal'}
@@ -105,38 +105,40 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Quick link switcher for multiple shares (mobile/compact) */}
-          {shares.length > 1 && (
-            <div className="hidden xl:block ml-2 pl-3 border-l border-[#f8bbd0]/60">
-              <select
-                value={activeShareId}
-                onChange={(e) => onSelectShare(e.target.value)}
-                className="px-2.5 py-1.5 rounded-xl bg-[#fce4ec] border border-[#f8bbd0] text-xs text-[#4a148c] outline-none focus:border-[#ec407a]"
-              >
-                {shares.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Mobile Right Quick Action Icons */}
+          <div className="flex items-center gap-1.5 md:hidden shrink-0">
+            <button
+              type="button"
+              onClick={onOpenShareModal}
+              className="p-2 rounded-xl bg-white hover:bg-pink-50 text-[#c2185b] border border-[#f8bbd0] transition-colors shadow-2xs"
+              title="Share & QR Code"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onToggleLang}
+              className="px-2 py-1.5 rounded-xl bg-white hover:bg-pink-50 border border-[#f8bbd0] text-[#7b1fa2] text-xs font-bold transition-colors shadow-2xs"
+            >
+              {lang.toUpperCase()}
+            </button>
+          </div>
         </div>
 
-        {/* Right Nav Navigation */}
-        <div className="flex items-center flex-wrap sm:flex-nowrap gap-2 sm:gap-2.5 justify-start sm:justify-end">
+        {/* Navigation Tabs Bar (Scrollable on Mobile) */}
+        <div className="flex items-center justify-between md:justify-end gap-2 overflow-x-auto no-scrollbar py-0.5">
           {/* Mode Switcher Tabs */}
-          <div className="bg-[#fce4ec]/80 p-1.5 rounded-2xl border border-[#f8bbd0] flex items-center gap-1 text-xs font-semibold shadow-2xs overflow-x-auto max-w-full">
+          <div className="bg-[#fce4ec]/85 p-1 sm:p-1.5 rounded-2xl border border-[#f8bbd0] flex items-center gap-1 text-xs font-semibold shadow-2xs overflow-x-auto no-scrollbar w-full md:w-auto">
             <button
               type="button"
               onClick={() => onModeChange('recipient')}
-              className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap text-xs ${
                 currentMode === 'recipient'
                   ? 'btn-mcu-primary shadow-sm font-bold'
                   : 'text-[#7b1fa2] hover:text-[#4a148c] hover:bg-white/70'
               }`}
             >
-              <FileSpreadsheet className="w-4 h-4" />
+              <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>
                 {lang === 'th' ? 'ดาวน์โหลดแบบฟอร์ม' : 'Download Forms'}
               </span>
@@ -146,13 +148,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => onModeChange('return')}
-              className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap text-xs ${
                 currentMode === 'return'
                   ? 'btn-mcu-primary shadow-sm font-bold'
                   : 'text-[#7b1fa2] hover:text-[#4a148c] hover:bg-white/70'
               }`}
             >
-              <GraduationCap className="w-4 h-4" />
+              <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>
                 {lang === 'th' ? 'ส่งคืนใบกรอกเกรด' : 'Return Grades'}
               </span>
@@ -162,7 +164,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => onModeChange('return-list')}
-              className={`px-3 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap text-xs ${
                 currentMode === 'return-list'
                   ? 'bg-gradient-to-r from-[#4a148c] to-[#7b1fa2] text-white shadow-sm font-bold'
                   : 'text-[#7b1fa2] hover:text-[#4a148c] hover:bg-white/70'
@@ -183,22 +185,22 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => onModeChange('admin')}
-              className={`px-3 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap text-xs ${
                 currentMode === 'admin'
                   ? 'bg-gradient-to-r from-[#4a148c] to-[#7b1fa2] text-white shadow-sm font-bold'
                   : 'text-[#7b1fa2] hover:text-[#4a148c] hover:bg-white/70'
               }`}
               title={lang === 'th' ? 'จัดการลิงก์' : 'Manage Links'}
             >
-              <Settings2 className="w-4 h-4" />
-              <span className="hidden sm:inline">{lang === 'th' ? 'จัดการลิงก์' : 'Manage'}</span>
+              <Settings2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden lg:inline">{lang === 'th' ? 'จัดการลิงก์' : 'Manage'}</span>
               {isAdminLoggedIn && (
                 <span className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-white"></span>
               )}
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="hidden md:flex items-center gap-1.5 shrink-0">
             {/* Share Button (opens QR / link modal) */}
             <button
               type="button"

@@ -463,9 +463,118 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
         </div>
       </div>
 
-      {/* Official Document Data Table */}
+      {/* Official Document Data Table & Mobile Responsive Cards */}
       <div className="bg-white/95 backdrop-blur-md rounded-[24px] border border-white/60 shadow-[0_15px_35px_rgba(171,71,188,0.12),0_5px_15px_rgba(0,0,0,0.04)] overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* --- MOBILE VIEW (< md): Modern Card Stack --- */}
+        <div className="md:hidden divide-y divide-purple-100">
+          {filteredFiles.length === 0 ? (
+            <div className="py-12 px-4 text-center text-slate-500">
+              <FileSpreadsheet className="w-10 h-10 text-purple-300 mx-auto mb-2" />
+              <p className="font-semibold text-[#4a148c]">ไม่พบแบบฟอร์มที่ตรงกับเงื่อนไข</p>
+              <p className="text-[11px] text-[#7b1fa2]/70 mt-1">กรุณาลองปรับเปลี่ยนตัวกรองค้นหา</p>
+            </div>
+          ) : (
+            filteredFiles.map((file, idx) => {
+              const isSelected = selectedFileIds.includes(file.id);
+              const isThisDownloading = downloadingId === file.id;
+              const isSubmitted = submittedSubmissions.some((s) => {
+                const yrMatch = s.year && file.year && s.year.includes(String(file.year));
+                const deptMatch = s.department && file.department && (s.department.includes(file.department) || file.department.includes(s.department));
+                return yrMatch && deptMatch;
+              });
+
+              return (
+                <div
+                  key={`m-${file.id}`}
+                  className={`p-4 transition-colors ${
+                    isSelected ? 'bg-pink-100/40' : 'bg-white'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleSelectFile(file.id)}
+                      className="mt-1 cursor-pointer text-slate-400 hover:text-[#ec407a] shrink-0"
+                    >
+                      {isSelected ? (
+                        <CheckSquare className="w-5 h-5 text-[#ec407a]" />
+                      ) : (
+                        <Square className="w-5 h-5 text-slate-300" />
+                      )}
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-[#7b1fa2] font-semibold">
+                          #{idx + 1}
+                        </span>
+                        {file.year && (
+                          <span className="px-2 py-0.5 rounded-full bg-purple-100 text-[#4a148c] font-bold text-[10px] border border-purple-200">
+                            ปี {file.year}
+                          </span>
+                        )}
+                        {file.studentType && (
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              file.studentType === 'บรรพชิต'
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                : 'bg-sky-50 text-sky-800 border border-sky-200'
+                            }`}
+                          >
+                            {file.studentType}
+                          </span>
+                        )}
+                        {isSubmitted && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <Check className="w-3 h-3 text-emerald-700" />
+                            <span>ส่งเกรดแล้ว ✔️</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="font-bold text-slate-900 text-xs leading-snug line-clamp-2">
+                        {file.name}
+                      </h3>
+
+                      <p className="text-[11px] text-[#7b1fa2]/80 mt-1">
+                        {file.faculty} • {file.department} • <span className="font-mono">{file.size}</span>
+                      </p>
+
+                      {/* Mobile Action Buttons */}
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewFile(file)}
+                          className="py-2 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-[#4a148c] font-semibold text-xs flex items-center justify-center gap-1.5 border border-purple-200 cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-[#ec407a]" />
+                          <span>ดูตัวอย่าง</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadFile(file)}
+                          disabled={isThisDownloading || isExpired || isLimitReached}
+                          className="py-2 px-3 rounded-xl btn-mcu-success text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          {isThisDownloading ? (
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5" />
+                          )}
+                          <span>ดาวน์โหลด</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* --- DESKTOP VIEW (>= md): Full Detailed Table --- */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             {/* Table Header */}
             <thead>
