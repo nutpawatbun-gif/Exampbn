@@ -147,12 +147,12 @@ export const LockScreen: React.FC<LockScreenProps> = ({
       >
         {/* Top Header Card */}
         <div className="p-6 md:p-8 text-center border-b border-[#f8bbd0]/40 bg-gradient-to-b from-[#fce4ec]/40 via-white to-white">
-          {/* Official MCU Logo in Header */}
+          {/* Official College Logo in Header */}
           <div className="flex justify-center mb-4">
             <img
-              src="https://www.mcu.ac.th/directory_template_frontend/img/logo-v6-th.png"
-              alt="MCU Emblem"
-              className="h-14 sm:h-16 w-auto object-contain drop-shadow-xs transition-transform hover:scale-105"
+              src="/college-logo.png"
+              alt="ตราประจำวิทยาลัยสงฆ์พ่อขุนผาเมือง เพชรบูรณ์"
+              className="h-16 sm:h-20 w-auto object-contain drop-shadow-xs transition-transform hover:scale-105"
             />
           </div>
 

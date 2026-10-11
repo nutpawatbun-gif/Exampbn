@@ -252,8 +252,8 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <img
-              src="https://www.mcu.ac.th/directory_template_frontend/img/logo-v6-th.png"
-              alt="MCU Logo"
+              src="/college-logo.png"
+              alt="ตราประจำวิทยาลัยสงฆ์พ่อขุนผาเมือง เพชรบูรณ์"
               className="h-12 w-auto object-contain shrink-0 hidden sm:block drop-shadow-sm"
             />
             <div>
