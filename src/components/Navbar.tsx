@@ -75,11 +75,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => onModeChange('recipient')}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            {/* MCU Official Logo from mcu.ac.th */}
+            {/* Logo วิทยาลัยสงฆ์พ่อขุนผาเมือง เพชรบูรณ์ */}
             <div className="h-12 w-12 rounded-2xl bg-white shadow-xs border border-pink-100 flex items-center justify-center p-1 shrink-0 transition-transform group-hover:scale-105">
               <img
                 src="https://www.mcu.ac.th/directory_template_frontend/img/logo-v6-th.png"
-                alt="MCU Logo"
+                alt="โลโก้วิทยาลัยสงฆ์พ่อขุนผาเมือง เพชรบูรณ์"
                 className="h-10 w-auto object-contain"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';

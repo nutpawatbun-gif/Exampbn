@@ -303,7 +303,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <img
               src="https://www.mcu.ac.th/directory_template_frontend/img/logo-v6-th.png"
-              alt="MCU Logo"
+              alt="โลโก้วิทยาลัยสงฆ์พ่อขุนผาเมือง เพชรบูรณ์"
               className="h-10 w-auto object-contain shrink-0"
             />
             <div>
