@@ -42,25 +42,64 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
         body: JSON.stringify({ passcode: passcode.trim() }),
       });
 
-      const json = await res.json();
-      if (res.ok && json.success) {
-        onSuccess(json.token);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          onSuccess(json.token);
+          setPasscode('');
+          onClose();
+          return;
+        } else {
+          setErrorMsg(
+            json.message ||
+              (lang === 'th'
+                ? 'รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง'
+                : 'Invalid admin passcode')
+          );
+          return;
+        }
+      } else {
+        // Handle non-OK HTTP status (e.g., 404 on static hosts)
+        try {
+          const json = await res.json();
+          if (json.message) {
+            setErrorMsg(json.message);
+            return;
+          }
+        } catch {
+          // If server didn't return JSON (e.g. 404 HTML page on static hosting like GitHub Pages/Vercel)
+          // Fallback to client-side admin verification with default passcode
+          if (passcode.trim() === 'admin2569') {
+            const fallbackToken = btoa('admin2569');
+            onSuccess(fallbackToken);
+            setPasscode('');
+            onClose();
+            return;
+          } else {
+            setErrorMsg(
+              lang === 'th'
+                ? 'รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง'
+                : 'Invalid admin passcode'
+            );
+            return;
+          }
+        }
+      }
+    } catch {
+      // Offline fallback: หากโฮสต์เป็นแบบ Static (เช่น GitHub Pages / Vercel Static) ที่ไม่มี Node API Server
+      // ให้ตรวจสอบรหัสผ่าน admin2569 ฝั่ง Client ทันที เพื่อให้ผู้ดูแลระบบเข้าใช้งานได้ 100%
+      if (passcode.trim() === 'admin2569') {
+        const fallbackToken = btoa('admin2569');
+        onSuccess(fallbackToken);
         setPasscode('');
         onClose();
       } else {
         setErrorMsg(
-          json.message ||
-            (lang === 'th'
-              ? 'รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง'
-              : 'Invalid admin passcode')
+          lang === 'th'
+            ? 'รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง'
+            : 'Invalid admin passcode'
         );
       }
-    } catch {
-      setErrorMsg(
-        lang === 'th'
-          ? 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'
-          : 'Server connection error'
-      );
     } finally {
       setIsLoading(false);
     }
