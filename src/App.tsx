@@ -24,8 +24,41 @@ import { AdminAuthModal } from './components/AdminAuthModal';
 import { GradeReturnForm } from './components/GradeReturnForm';
 import { SubmittedGradesList } from './components/SubmittedGradesList';
 
+// Helper to get initial share with localStorage sync
+const getInitialSharePackage = (): SharePackage => {
+  const def = createDefaultSharePackage();
+  try {
+    const savedDownloads = localStorage.getItem(`mcu_downloads_${def.id}`);
+    if (savedDownloads !== null) {
+      def.stats.totalDownloadsCount = parseInt(savedDownloads, 10) || 0;
+    }
+    const savedFiles = localStorage.getItem(`mcu_files_${def.id}`);
+    if (savedFiles) {
+      const fileData = JSON.parse(savedFiles) as {
+        id: string;
+        downloadCount: number;
+        lastDownloadedAt?: string;
+      }[];
+      def.files = def.files.map((f) => {
+        const found = fileData.find((item) => item.id === f.id);
+        if (found) {
+          return {
+            ...f,
+            downloadCount: found.downloadCount || 0,
+            lastDownloadedAt: found.lastDownloadedAt,
+          };
+        }
+        return f;
+      });
+    }
+  } catch (err) {
+    console.warn('LocalStorage share init fallback:', err);
+  }
+  return def;
+};
+
 export default function App() {
-  const [shares, setShares] = useState<SharePackage[]>([createDefaultSharePackage()]);
+  const [shares, setShares] = useState<SharePackage[]>([getInitialSharePackage()]);
   const [activeShareId, setActiveShareId] = useState<string>('grade-sem1-2569');
   const [unlockedShares, setUnlockedShares] = useState<Record<string, boolean>>({});
   const [currentMode, setCurrentMode] = useState<
@@ -77,10 +110,57 @@ export default function App() {
         if (json.data && json.data.length > 0) {
           const fullShares: SharePackage[] = json.data.map((item: any) => {
             const def = createDefaultSharePackage();
+
+            // Ensure expiration date is kept active and fresh
+            let expiresAt = item.security?.expiresAt || def.security.expiresAt;
+            if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) {
+              expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+            }
+
+            // Sync total download count with localStorage
+            let localTotalDownloads = item.stats?.totalDownloadsCount || 0;
+            const savedDownloads = localStorage.getItem(`mcu_downloads_${item.id}`);
+            if (savedDownloads !== null) {
+              const parsed = parseInt(savedDownloads, 10);
+              if (!isNaN(parsed) && parsed > localTotalDownloads) {
+                localTotalDownloads = parsed;
+              }
+            }
+
+            // Sync files download counts with localStorage
+            let mergedFiles = item.files && item.files.length > 0 ? item.files : def.files;
+            const savedFiles = localStorage.getItem(`mcu_files_${item.id}`);
+            if (savedFiles) {
+              try {
+                const fileData = JSON.parse(savedFiles);
+                mergedFiles = mergedFiles.map((f: any) => {
+                  const found = fileData.find((fd: any) => fd.id === f.id);
+                  if (found && (found.downloadCount || 0) > (f.downloadCount || 0)) {
+                    return {
+                      ...f,
+                      downloadCount: found.downloadCount,
+                      lastDownloadedAt: found.lastDownloadedAt,
+                    };
+                  }
+                  return f;
+                });
+              } catch {}
+            }
+
             return {
               ...def,
               ...item,
-              files: item.files && item.files.length > 0 ? item.files : def.files,
+              security: {
+                ...def.security,
+                ...item.security,
+                expiresAt,
+              },
+              files: mergedFiles,
+              stats: {
+                ...def.stats,
+                ...item.stats,
+                totalDownloadsCount: localTotalDownloads,
+              },
             };
           });
           setShares(fullShares);
@@ -115,7 +195,7 @@ export default function App() {
 
   // Current active share object
   const activeShare =
-    shares.find((s) => s.id === activeShareId) || shares[0] || createDefaultSharePackage();
+    shares.find((s) => s.id === activeShareId) || shares[0] || getInitialSharePackage();
 
   // Handlers
   const handleUnlockSuccess = (unlockedPkg: SharePackage) => {
@@ -129,18 +209,41 @@ export default function App() {
     setUnlockedShares((prev) => ({ ...prev, [activeShare.id]: false }));
   };
 
-  const handleUpdateShareStats = (newTotalDownloads: number) => {
+  const handleUpdateShareStats = (
+    newTotalDownloads: number,
+    updatedFiles?: DriveFileItem[]
+  ) => {
     setShares((prev) =>
       prev.map((s) => {
         if (s.id === activeShare.id) {
           return {
             ...s,
+            files: updatedFiles || s.files,
             stats: { ...s.stats, totalDownloadsCount: newTotalDownloads },
           };
         }
         return s;
       })
     );
+
+    // Save to localStorage so download count persists across reloads on static hosts
+    try {
+      localStorage.setItem(`mcu_downloads_${activeShare.id}`, String(newTotalDownloads));
+      if (updatedFiles) {
+        localStorage.setItem(
+          `mcu_files_${activeShare.id}`,
+          JSON.stringify(
+            updatedFiles.map((f) => ({
+              id: f.id,
+              downloadCount: f.downloadCount,
+              lastDownloadedAt: f.lastDownloadedAt,
+            }))
+          )
+        );
+      }
+    } catch (e) {
+      console.warn('Could not persist download count to localStorage:', e);
+    }
   };
 
   const handleShareCreated = (newShare: SharePackage) => {

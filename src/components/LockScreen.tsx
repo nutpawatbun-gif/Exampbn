@@ -176,31 +176,31 @@ export const LockScreen: React.FC<LockScreenProps> = ({
           )}
 
           {/* Key Parameters Badges in Clean MCU Cards */}
-          <div className="mt-5 grid grid-cols-2 md:grid-cols-3 gap-2.5 text-xs text-left">
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs text-left">
             {/* Total files */}
-            <div className="p-3 rounded-2xl bg-[#fdf5f8] border border-[#f8bbd0]/60 shadow-2xs flex flex-col justify-between">
+            <div className="p-3.5 rounded-2xl bg-[#fdf5f8] border border-[#f8bbd0]/60 shadow-2xs flex flex-col justify-between">
               <span className="text-[#ad1457] text-[11px] font-semibold uppercase tracking-wider">
                 {lang === 'th' ? 'จำนวนเอกสาร' : 'Total Files'}
               </span>
-              <span className="font-bold text-[#4a148c] text-sm mt-0.5">
+              <span className="font-bold text-[#4a148c] text-sm mt-1">
                 {share.files.length} {lang === 'th' ? 'ไฟล์ (.xls)' : 'Files'}
               </span>
             </div>
 
             {/* Expiration badge */}
             <div
-              className={`p-3 rounded-2xl border shadow-2xs flex flex-col justify-between ${
+              className={`p-3.5 rounded-2xl border shadow-2xs flex flex-col justify-between ${
                 isExpired
                   ? 'bg-rose-50 border-rose-200 text-rose-800'
                   : 'bg-[#fdf5f8] border-[#f8bbd0]/60 text-[#4a148c]'
               }`}
             >
-              <div className="flex items-center gap-1 text-[11px] text-[#ad1457] font-semibold uppercase tracking-wider">
-                <Clock className="w-3 h-3 text-[#ec407a]" />
+              <div className="flex items-center gap-1.5 text-[11px] text-[#ad1457] font-semibold uppercase tracking-wider">
+                <Clock className="w-3.5 h-3.5 text-[#ec407a] shrink-0" />
                 <span>{lang === 'th' ? 'กำหนดหมดอายุ' : 'Expires'}</span>
               </div>
               <span
-                className={`font-bold text-xs mt-0.5 truncate ${
+                className={`font-bold text-xs sm:text-sm mt-1 leading-tight break-words ${
                   isExpired ? 'text-rose-600' : 'text-[#c2185b]'
                 }`}
               >
@@ -218,18 +218,18 @@ export const LockScreen: React.FC<LockScreenProps> = ({
 
             {/* Downloads limit */}
             <div
-              className={`col-span-2 md:col-span-1 p-3 rounded-2xl border shadow-2xs flex flex-col justify-between ${
+              className={`p-3.5 rounded-2xl border shadow-2xs flex flex-col justify-between ${
                 isLimitReached
                   ? 'bg-amber-50 border-amber-200 text-amber-900'
                   : 'bg-[#fdf5f8] border-[#f8bbd0]/60 text-[#4a148c]'
               }`}
             >
-              <div className="flex items-center gap-1 text-[11px] text-[#ad1457] font-semibold uppercase tracking-wider">
-                <Download className="w-3 h-3 text-[#ec407a]" />
+              <div className="flex items-center gap-1.5 text-[11px] text-[#ad1457] font-semibold uppercase tracking-wider">
+                <Download className="w-3.5 h-3.5 text-[#ec407a] shrink-0" />
                 <span>{lang === 'th' ? 'สิทธิ์ดาวน์โหลด' : 'Downloads'}</span>
               </div>
               <span
-                className={`font-bold text-xs mt-0.5 truncate ${
+                className={`font-bold text-xs sm:text-sm mt-1 leading-tight break-words ${
                   isLimitReached ? 'text-amber-600' : 'text-[#4a148c]'
                 }`}
               >

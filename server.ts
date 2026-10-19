@@ -54,10 +54,14 @@ try {
   console.warn('Could not read saved submissions data:', e);
 }
 
-// Ensure default package is always available
+// Ensure default package is always available and active
 if (!shares['grade-sem1-2569']) {
   const defaultPkg = createDefaultSharePackage();
   shares[defaultPkg.id] = defaultPkg;
+  saveSharesData();
+} else if (shares['grade-sem1-2569'].security.expiresAt && new Date() > new Date(shares['grade-sem1-2569'].security.expiresAt)) {
+  const now = new Date();
+  shares['grade-sem1-2569'].security.expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
   saveSharesData();
 }
 

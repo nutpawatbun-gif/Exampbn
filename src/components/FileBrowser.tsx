@@ -29,7 +29,7 @@ import { AIAssistantModal } from './AIAssistantModal';
 interface FileBrowserProps {
   share: SharePackage;
   onLock: () => void;
-  onUpdateShareStats: (totalDownloads: number) => void;
+  onUpdateShareStats: (totalDownloads: number, updatedFiles?: DriveFileItem[]) => void;
   lang: 'th' | 'en';
   submittedSubmissions?: GradeSubmission[];
   onNavigateToReturn?: (prefillItem?: DriveFileItem) => void;
@@ -137,6 +137,22 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
     setDownloadingId(file.id);
     setDownloadError(null);
 
+    // 1. Immediately update local download state for file & total quota
+    const nextDownloads = (currentDownloads || 0) + 1;
+    const updatedFiles = share.files.map((f) => {
+      if (f.id === file.id) {
+        return {
+          ...f,
+          downloadCount: (f.downloadCount || 0) + 1,
+          lastDownloadedAt: new Date().toISOString(),
+        };
+      }
+      return f;
+    });
+
+    onUpdateShareStats(nextDownloads, updatedFiles);
+
+    // 2. Try recording on server if backend is reachable
     try {
       const res = await fetch(`/api/shares/${share.id}/record-download`, {
         method: 'POST',
@@ -146,17 +162,16 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
 
       if (res.ok) {
         const data = await res.json();
-        onUpdateShareStats(data.totalDownloadsCount);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        if (data.message) {
-          setDownloadError(data.message);
-          setDownloadingId(null);
-          return;
+        if (data.totalDownloadsCount !== undefined) {
+          onUpdateShareStats(data.totalDownloadsCount, updatedFiles);
         }
       }
+    } catch (apiErr) {
+      console.warn('Sync download to server skipped (offline/static):', apiErr);
+    }
 
-      // Direct download trigger
+    // 3. Trigger browser direct download of the file
+    try {
       const directUrl = `https://drive.usercontent.google.com/download?id=${file.id}&export=download`;
       const a = document.createElement('a');
       a.href = directUrl;
@@ -169,7 +184,6 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
       console.error('Download error:', err);
       const directUrl = `https://drive.google.com/uc?export=download&id=${file.id}`;
       window.open(directUrl, '_blank');
-      onUpdateShareStats(currentDownloads + 1);
     } finally {
       setTimeout(() => setDownloadingId(null), 1000);
     }
@@ -194,6 +208,21 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
     setIsZipping(true);
     setZipProgress(0);
     setDownloadError(null);
+
+    // Increment download count for all selected files
+    const countAdded = filesToDownload.length;
+    const nextTotal = (currentDownloads || 0) + countAdded;
+    const updatedFiles = share.files.map((f) => {
+      if (selectedFileIds.includes(f.id)) {
+        return {
+          ...f,
+          downloadCount: (f.downloadCount || 0) + 1,
+          lastDownloadedAt: new Date().toISOString(),
+        };
+      }
+      return f;
+    });
+    onUpdateShareStats(nextTotal, updatedFiles);
 
     try {
       const zip = new JSZip();
@@ -225,14 +254,20 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
       document.body.removeChild(a);
       URL.revokeObjectURL(zipUrl);
 
-      const res = await fetch(`/api/shares/${share.id}/record-download`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count: filesToDownload.length }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        onUpdateShareStats(data.totalDownloadsCount);
+      try {
+        const res = await fetch(`/api/shares/${share.id}/record-download`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ count: filesToDownload.length }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.totalDownloadsCount !== undefined) {
+            onUpdateShareStats(data.totalDownloadsCount, updatedFiles);
+          }
+        }
+      } catch (err) {
+        console.warn('Sync zip download to server skipped:', err);
       }
     } catch (err) {
       console.error('ZIP error:', err);
@@ -278,36 +313,46 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
           </div>
 
           {/* Quick Metrics & Lock Button */}
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0 text-xs">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0 text-xs mt-2 md:mt-0">
             {/* Expiry Pill */}
-            <div className="px-3.5 py-1.5 rounded-xl bg-[#fce4ec]/60 border border-[#f8bbd0] flex items-center gap-1.5 text-[#4a148c] font-medium">
-              <Clock className="w-3.5 h-3.5 text-[#ec407a]" />
-              <span>
-                {isExpired
-                  ? lang === 'th'
-                    ? 'หมดอายุแล้ว'
-                    : 'Expired'
-                  : share.security.expiresAt
-                  ? `หมดอายุ: ${timeLeft.formattedText}`
-                  : 'ไม่หมดอายุ'}
-              </span>
+            <div className="px-3.5 py-2 rounded-xl bg-[#fdf5f8] border border-[#f8bbd0] flex items-center gap-2 text-[#4a148c] font-semibold shadow-2xs">
+              <Clock className="w-4 h-4 text-[#ec407a] shrink-0" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
+                <span className="text-[#ad1457] text-[10px] sm:text-xs">
+                  {lang === 'th' ? 'กำหนดหมดอายุ:' : 'Expires:'}
+                </span>
+                <span className={`font-bold text-[11px] sm:text-xs ${isExpired ? 'text-rose-600' : 'text-[#c2185b]'}`}>
+                  {isExpired
+                    ? lang === 'th'
+                      ? 'หมดอายุแล้ว'
+                      : 'Expired'
+                    : share.security.expiresAt
+                    ? timeLeft.formattedText
+                    : lang === 'th' ? 'ตลอดไป' : 'Never'}
+                </span>
+              </div>
             </div>
 
             {/* Downloads Limit Pill */}
-            <div className="px-3.5 py-1.5 rounded-xl bg-emerald-50/80 border border-emerald-200 flex items-center gap-1.5 text-emerald-800 font-medium">
-              <Download className="w-3.5 h-3.5 text-emerald-600" />
-              <span>
-                {maxDownloads !== null && maxDownloads !== undefined
-                  ? `ดาวน์โหลด: ${currentDownloads}/${maxDownloads}`
-                  : `ดาวน์โหลดแล้ว: ${currentDownloads}`}
-              </span>
+            <div className="px-3.5 py-2 rounded-xl bg-emerald-50/90 border border-emerald-200 flex items-center gap-2 text-emerald-900 font-semibold shadow-2xs">
+              <Download className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
+                <span className="text-emerald-700 text-[10px] sm:text-xs">
+                  {lang === 'th' ? 'สิทธิ์ดาวน์โหลด:' : 'Quota:'}
+                </span>
+                <span className="font-bold text-[11px] sm:text-xs text-[#00695c]">
+                  {maxDownloads !== null && maxDownloads !== undefined
+                    ? `${currentDownloads}/${maxDownloads} ครั้ง`
+                    : `ดาวน์โหลดแล้ว ${currentDownloads} ครั้ง`}
+                </span>
+              </div>
             </div>
 
             {/* Lock Button */}
             <button
               type="button"
               onClick={onLock}
-              className="px-3.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-[#7b1fa2] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-[#7b1fa2] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
             >
               <Lock className="w-3.5 h-3.5 text-[#ab47bc]" />
               <span>{lang === 'th' ? 'ล็อกหน้า' : 'Lock'}</span>
@@ -530,6 +575,12 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                             <span>ส่งเกรดแล้ว ✔️</span>
                           </span>
                         )}
+                        {file.downloadCount && file.downloadCount > 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                            <Download className="w-3 h-3 text-emerald-600" />
+                            <span>ดาวน์โหลดแล้ว {file.downloadCount} ครั้ง</span>
+                          </span>
+                        ) : null}
                       </div>
 
                       <h3 className="font-bold text-slate-900 text-xs leading-snug line-clamp-2">
@@ -562,7 +613,11 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                           ) : (
                             <Download className="w-3.5 h-3.5" />
                           )}
-                          <span>ดาวน์โหลด</span>
+                          <span>
+                            {file.downloadCount && file.downloadCount > 0
+                              ? `โหลดอีกครั้ง (${file.downloadCount})`
+                              : 'ดาวน์โหลด'}
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -690,6 +745,12 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                                   <span>ส่งเกรดแล้ว ✔️</span>
                                 </span>
                               )}
+                              {file.downloadCount && file.downloadCount > 0 ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs shrink-0 animate-in fade-in">
+                                  <Download className="w-3 h-3 text-emerald-600" />
+                                  <span>ดาวน์โหลดแล้ว {file.downloadCount} ครั้ง</span>
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                         </div>
@@ -759,7 +820,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                             type="button"
                             onClick={() => handleDownloadFile(file)}
                             disabled={isThisDownloading || isExpired || isLimitReached}
-                            className="px-3 py-1.5 rounded-full btn-mcu-success text-white font-semibold flex items-center gap-1 transition-all cursor-pointer text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-3.5 py-1.5 rounded-full btn-mcu-success text-white font-semibold flex items-center gap-1 transition-all cursor-pointer text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                             title="ดาวน์โหลดไฟล์ Excel (.xls)"
                           >
                             {isThisDownloading ? (
@@ -767,7 +828,11 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
                             ) : (
                               <Download className="w-3.5 h-3.5" />
                             )}
-                            <span>ดาวน์โหลด</span>
+                            <span>
+                              {file.downloadCount && file.downloadCount > 0
+                                ? `ดาวน์โหลด (${file.downloadCount})`
+                                : 'ดาวน์โหลด'}
+                            </span>
                           </button>
                         </div>
                       </td>
