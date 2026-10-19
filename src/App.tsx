@@ -23,6 +23,7 @@ import { ShareModal } from './components/ShareModal';
 import { AdminAuthModal } from './components/AdminAuthModal';
 import { GradeReturnForm } from './components/GradeReturnForm';
 import { SubmittedGradesList } from './components/SubmittedGradesList';
+import { subscribeRealtimeSync, recordDownloadSync } from './utils/syncManager';
 
 // Helper to get initial share with localStorage sync
 const getInitialSharePackage = (): SharePackage => {
@@ -185,13 +186,54 @@ export default function App() {
       setCurrentMode('recipient');
     }
 
-    // Auto-refresh interval (every 8 seconds) to ensure real-time file status
+    // Auto-refresh interval (every 8 seconds) for submissions
     const timer = setInterval(() => {
       fetchSubmissions();
     }, 8000);
 
-    return () => clearInterval(timer);
-  }, []);
+    // Real-time synchronization across different browsers (Chrome, Edge, Mobile) & tabs
+    const targetShareId = shareParam || activeShareId;
+    const unsubscribeSync = subscribeRealtimeSync(targetShareId, (syncData) => {
+      setShares((prev) =>
+        prev.map((s) => {
+          if (s.id === targetShareId) {
+            let changed = false;
+            let updatedDownloads = s.stats.totalDownloadsCount;
+            if (syncData.totalDownloads > s.stats.totalDownloadsCount) {
+              updatedDownloads = syncData.totalDownloads;
+              changed = true;
+            }
+
+            const updatedFiles = s.files.map((f) => {
+              const cloudCount = syncData.fileDownloads[f.id];
+              if (typeof cloudCount === 'number' && cloudCount > (f.downloadCount || 0)) {
+                changed = true;
+                return { ...f, downloadCount: cloudCount };
+              }
+              return f;
+            });
+
+            if (!changed) return s;
+
+            return {
+              ...s,
+              files: updatedFiles,
+              stats: {
+                ...s.stats,
+                totalDownloadsCount: updatedDownloads,
+              },
+            };
+          }
+          return s;
+        })
+      );
+    });
+
+    return () => {
+      clearInterval(timer);
+      unsubscribeSync();
+    };
+  }, [activeShareId]);
 
   // Current active share object
   const activeShare =
@@ -226,24 +268,21 @@ export default function App() {
       })
     );
 
-    // Save to localStorage so download count persists across reloads on static hosts
-    try {
-      localStorage.setItem(`mcu_downloads_${activeShare.id}`, String(newTotalDownloads));
-      if (updatedFiles) {
-        localStorage.setItem(
-          `mcu_files_${activeShare.id}`,
-          JSON.stringify(
-            updatedFiles.map((f) => ({
-              id: f.id,
-              downloadCount: f.downloadCount,
-              lastDownloadedAt: f.lastDownloadedAt,
-            }))
-          )
-        );
+    // Save & Broadcast across all browsers (Chrome, Edge, Safari, Mobile)
+    const fileDownloads: Record<string, number> = {};
+    const filesToSync = updatedFiles || activeShare.files;
+    filesToSync.forEach((f) => {
+      if (f.downloadCount && f.downloadCount > 0) {
+        fileDownloads[f.id] = f.downloadCount;
       }
-    } catch (e) {
-      console.warn('Could not persist download count to localStorage:', e);
-    }
+    });
+
+    recordDownloadSync(
+      activeShare.id,
+      newTotalDownloads,
+      fileDownloads,
+      activeShare.security.expiresAt || undefined
+    );
   };
 
   const handleShareCreated = (newShare: SharePackage) => {

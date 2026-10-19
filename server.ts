@@ -179,12 +179,43 @@ app.get('/api/shares', (req: Request, res: Response) => {
       allowPreviewWithoutDownload: pkg.security.allowPreviewWithoutDownload,
       allowZipDownload: pkg.security.allowZipDownload,
     },
+    files: pkg.files,
     stats: pkg.stats,
     isExpired: isShareExpired(pkg),
     isLimitReached: isDownloadLimitReached(pkg),
     customNote: pkg.customNote,
   }));
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.json({ success: true, data: list, isAdmin: adminAuthorized });
+});
+
+// 1.1 Real-time status endpoint for instant cross-tab / cross-browser sync
+app.get('/api/shares/:id/realtime', (req: Request, res: Response) => {
+  const pkg = shares[req.params.id];
+  if (!pkg) {
+    return res.status(404).json({ success: false, message: 'Not found' });
+  }
+
+  const fileDownloads: Record<string, number> = {};
+  for (const f of pkg.files) {
+    if (f.downloadCount && f.downloadCount > 0) {
+      fileDownloads[f.id] = f.downloadCount;
+    }
+  }
+
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.json({
+    success: true,
+    id: pkg.id,
+    totalDownloadsCount: pkg.stats.totalDownloadsCount,
+    viewsCount: pkg.stats.viewsCount,
+    unlockedCount: pkg.stats.unlockedCount,
+    expiresAt: pkg.security.expiresAt,
+    maxDownloads: pkg.security.maxDownloads,
+    isExpired: isShareExpired(pkg),
+    isLimitReached: isDownloadLimitReached(pkg),
+    fileDownloads,
+  });
 });
 
 // 2. Get public metadata for a specific share link

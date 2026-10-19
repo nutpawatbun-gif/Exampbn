@@ -232,10 +232,24 @@ export const DEFAULT_FILES: DriveFileItem[] = [
   },
 ];
 
-// Helper to create initial default share with 7-day expiration and 50 downloads limit
+// Fixed target expiration date so all browsers (Chrome, Edge, Safari, Mobile) count down to the EXACT same second
+export const DEFAULT_EXPIRES_AT = '2026-10-26T23:59:59.000Z';
+
+export const getTargetExpirationDate = (): string => {
+  const targetTime = new Date(DEFAULT_EXPIRES_AT).getTime();
+  if (targetTime > Date.now()) {
+    return DEFAULT_EXPIRES_AT;
+  }
+  // If target passed in future years, roll by 7 days
+  const rolling = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  rolling.setHours(23, 59, 59, 0);
+  return rolling.toISOString();
+};
+
+// Helper to create initial default share with unified expiration and 50 downloads limit
 export const createDefaultSharePackage = (): SharePackage => {
   const now = new Date();
-  const expires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+  const expiresAt = getTargetExpirationDate();
 
   return {
     id: 'grade-sem1-2569',
@@ -252,7 +266,7 @@ export const createDefaultSharePackage = (): SharePackage => {
       requirePassword: true,
       password: '2569',
       passwordHint: 'ปีการศึกษา 4 หลัก',
-      expiresAt: expires.toISOString(),
+      expiresAt,
       maxDownloads: 50, // Limit 50 downloads
       allowPreviewWithoutDownload: true,
       allowZipDownload: true,
