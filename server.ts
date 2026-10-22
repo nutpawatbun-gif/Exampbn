@@ -763,10 +763,17 @@ app.post('/api/parse-grade-file', upload.single('file'), (req: Request, res: Res
     let extractedSubjectCode = '';
     let extractedSubjectName = '';
     let extractedLecturer = '';
+    let extractedSemester = '';
+    let extractedAcademicYear = '';
+    let extractedStudentCount = 0;
 
-    // Inspect first 25 rows and 15 columns for metadata
-    const maxRow = 25;
-    const maxCol = 15;
+    // Inspect first 35 rows and 20 columns for metadata
+    const maxRow = 35;
+    const maxCol = 20;
+
+    // Track rows that likely contain student data (rows with numeric student IDs or sequential numbers)
+    let studentDataRowStart = -1;
+    let studentDataRowEnd = -1;
 
     for (let r = 0; r < maxRow; r++) {
       for (let c = 0; c < maxCol; c++) {
@@ -821,8 +828,45 @@ app.post('/api/parse-grade-file', upload.single('file'), (req: Request, res: Res
             extractedLecturer = cleanLect;
           }
         }
+
+        // 6. Detect Semester e.g. "ภาคเรียนที่ 1", "ภาคการศึกษาที่ 2"
+        if (!extractedSemester) {
+          const semMatch = text.match(/ภาคเรียนที่\s*([1-3])|ภาคการศึกษาที่\s*([1-3])|ภาค\s*([1-3])\b/);
+          if (semMatch) {
+            extractedSemester = semMatch[1] || semMatch[2] || semMatch[3];
+          }
+        }
+
+        // 7. Detect Academic Year e.g. "ปีการศึกษา 2569", "พ.ศ. 2569"
+        if (!extractedAcademicYear) {
+          const ayMatch = text.match(/ปีการศึกษา\s*(25[0-9]{2})|พ\.ศ\.\s*(25[0-9]{2})/);
+          if (ayMatch) {
+            extractedAcademicYear = ayMatch[1] || ayMatch[2];
+          }
+        }
       }
     }
+
+    // 8. Count student rows: scan all rows, look for rows with sequential numbers (1, 2, 3...) or student IDs
+    // Student ID pattern for MCU: 6-digit numbers starting with common prefixes
+    const allRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as any[][];
+    let seqCount = 0;
+    for (let r = 0; r < allRows.length; r++) {
+      const row = allRows[r];
+      if (!row || row.length === 0) continue;
+      // Look for a cell that is a small positive integer (student sequence number 1..200)
+      for (let c = 0; c < Math.min(row.length, 5); c++) {
+        const cellVal = row[c];
+        const num = typeof cellVal === 'number' ? cellVal : parseInt(String(cellVal), 10);
+        if (!isNaN(num) && num >= 1 && num <= 200 && num === seqCount + 1) {
+          seqCount++;
+          if (seqCount === 1) studentDataRowStart = r;
+          studentDataRowEnd = r;
+          break;
+        }
+      }
+    }
+    if (seqCount > 0) extractedStudentCount = seqCount;
 
     // Try fallback from original filename if still empty
     const orig = req.file.originalname;
@@ -849,6 +893,9 @@ app.post('/api/parse-grade-file', upload.single('file'), (req: Request, res: Res
         subjectCode: extractedSubjectCode || '',
         subjectName: extractedSubjectName || '',
         lecturerName: extractedLecturer || '',
+        semester: extractedSemester || '',
+        academicYear: extractedAcademicYear || '',
+        studentCount: extractedStudentCount || 0,
         originalFileName: req.file.originalname,
         fileSizeBytes: req.file.size,
       },
@@ -869,6 +916,10 @@ app.post('/api/submit-grade', upload.single('file'), async (req: Request, res: R
     subjectName,
     lecturerName,
     uploaderName,
+    studentGroup,
+    semester,
+    academicYear,
+    studentCount,
   } = req.body;
 
   if (!req.file) {
@@ -880,7 +931,7 @@ app.post('/api/submit-grade', upload.single('file'), async (req: Request, res: R
   }
 
   // Standard naming format:
-  // (ปี 1)(สาขาวิชารัฐประศาสนศาสตร์)(รปศ101)(การบริหารรัฐกิจเบื้องต้น)(ผศ.ดร.สมชาย ใจดี).xlsx
+  // (บรรพชิต)(ปี 1)(สาขาวิชารัฐประศาสนศาสตร์)(รปศ101)(การบริหารรัฐกิจเบื้องต้น)(ผศ.ดร.สมชาย ใจดี).xlsx
   const ext = path.extname(req.file.originalname) || '.xlsx';
   const cleanYear = year.trim();
   const cleanDept = department.trim();
@@ -888,8 +939,13 @@ app.post('/api/submit-grade', upload.single('file'), async (req: Request, res: R
   const cleanName = subjectName.trim().replace(/[\s/\\?%*:|"<>]/g, ' ');
   const cleanLecturer = lecturerName.trim().replace(/[\s/\\?%*:|"<>]/g, ' ');
   const cleanUploader = uploaderName.trim();
+  const cleanGroup = (studentGroup || '').trim();
+  const cleanSemester = (semester || '').trim();
+  const cleanAcademicYear = (academicYear || '').trim();
+  const cleanStudentCount = parseInt(String(studentCount || '0'), 10) || 0;
 
-  const standardFileName = `(${cleanYear})(${cleanDept})(${cleanCode})(${cleanName})(${cleanLecturer})${ext}`;
+  const groupPrefix = cleanGroup ? `(${cleanGroup})` : '';
+  const standardFileName = `${groupPrefix}(${cleanYear})(${cleanDept})(${cleanCode})(${cleanName})(${cleanLecturer})${ext}`;
 
   // Save file locally to server uploads as backup
   const safeDiskName = `${Date.now()}_${standardFileName}`;
@@ -944,6 +1000,10 @@ app.post('/api/submit-grade', upload.single('file'), async (req: Request, res: R
     subjectName: cleanName,
     lecturerName: cleanLecturer,
     uploaderName: cleanUploader,
+    studentGroup: cleanGroup || undefined,
+    semester: cleanSemester || undefined,
+    academicYear: cleanAcademicYear || undefined,
+    studentCount: cleanStudentCount > 0 ? cleanStudentCount : undefined,
     standardFileName,
     originalFileName: req.file.originalname,
     fileSize: `${Math.round(req.file.size / 1024)} KB`,

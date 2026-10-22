@@ -52,7 +52,10 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
   const [subjectName, setSubjectName] = useState<string>('');
   const [lecturerName, setLecturerName] = useState<string>('');
   const [uploaderName, setUploaderName] = useState<string>('');
-
+  const [studentGroup, setStudentGroup] = useState<string>('');
+  const [semester, setSemester] = useState<string>('');
+  const [academicYear, setAcademicYear] = useState<string>('');
+  const [studentCount, setStudentCount] = useState<string>('');
   const [isParsing, setIsParsing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [parseMessage, setParseMessage] = useState<string | null>(null);
@@ -69,7 +72,8 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
   const cleanSubj = subjectName ? subjectName.trim() : 'ชื่อรายวิชา';
   const cleanLecturer = lecturerName ? lecturerName.trim() : 'ชื่ออาจารย์ผู้บรรยาย';
 
-  const liveStandardFileName = `(${cleanYear})(${cleanDept})(${cleanCode})(${cleanSubj})(${cleanLecturer})${ext}`;
+  const groupPrefix = studentGroup ? `(${studentGroup})` : '';
+  const liveStandardFileName = `${groupPrefix}(${cleanYear})(${cleanDept})(${cleanCode})(${cleanSubj})(${cleanLecturer})${ext}`;
 
   // Handle file select and parse Excel automatically
   const handleFileChange = async (selectedFile: File) => {
@@ -96,6 +100,9 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
         if (d.subjectCode) setSubjectCode(d.subjectCode);
         if (d.subjectName) setSubjectName(d.subjectName);
         if (d.lecturerName) setLecturerName(d.lecturerName);
+        if (d.semester) setSemester(d.semester);
+        if (d.academicYear) setAcademicYear(d.academicYear);
+        if (d.studentCount && d.studentCount > 0) setStudentCount(String(d.studentCount));
 
         setParseMessage(
           lang === 'th'
@@ -114,6 +121,14 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
     e.preventDefault();
     if (!file) {
       setErrorMessage(lang === 'th' ? 'กรุณาแนบไฟล์ใบกรอกคะแนน' : 'Please attach your grade file');
+      return;
+    }
+    if (!studentGroup) {
+      setErrorMessage(
+        lang === 'th'
+          ? 'กรุณาเลือกกลุ่ม (บรรพชิต หรือ คฤหัสถ์)'
+          : 'Please select a student group (Monk or Layperson)'
+      );
       return;
     }
     if (!subjectCode.trim() || !subjectName.trim() || !lecturerName.trim() || !uploaderName.trim()) {
@@ -137,6 +152,10 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
     formData.append('subjectName', subjectName);
     formData.append('lecturerName', lecturerName);
     formData.append('uploaderName', uploaderName);
+    formData.append('studentGroup', studentGroup);
+    formData.append('semester', semester);
+    formData.append('academicYear', academicYear);
+    formData.append('studentCount', studentCount);
 
     try {
       const res = await fetch('/api/submit-grade', {
@@ -219,6 +238,28 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
               <span className="text-[#7b1fa2] font-semibold">สาขาวิชา:</span>
               <span className="font-bold text-[#4a148c]">{submittedData.department}</span>
             </div>
+            {submittedData.studentGroup && (
+              <div className="flex justify-between border-b border-pink-100 pb-2">
+                <span className="text-[#7b1fa2] font-semibold">กลุ่ม:</span>
+                <span className="font-bold text-[#4a148c]">{submittedData.studentGroup}</span>
+              </div>
+            )}
+            {(submittedData.semester || submittedData.academicYear) && (
+              <div className="flex justify-between border-b border-pink-100 pb-2">
+                <span className="text-[#7b1fa2] font-semibold">ภาคเรียน / ปีการศึกษา:</span>
+                <span className="font-bold text-[#4a148c]">
+                  {submittedData.semester ? `ภาคเรียนที่ ${submittedData.semester}` : ''}
+                  {submittedData.semester && submittedData.academicYear ? ' / ' : ''}
+                  {submittedData.academicYear ? `ปีการศึกษา ${submittedData.academicYear}` : ''}
+                </span>
+              </div>
+            )}
+            {submittedData.studentCount != null && submittedData.studentCount > 0 && (
+              <div className="flex justify-between border-b border-pink-100 pb-2">
+                <span className="text-[#7b1fa2] font-semibold">จำนวนนิสิต:</span>
+                <span className="font-bold text-[#4a148c]">{submittedData.studentCount} คน</span>
+              </div>
+            )}
             <div className="flex justify-between border-b border-pink-100 pb-2">
               <span className="text-[#7b1fa2] font-semibold">อาจารย์ผู้บรรยาย:</span>
               <span className="font-bold text-[#4a148c]">{submittedData.lecturerName}</span>
@@ -245,6 +286,10 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
                 setSubjectName('');
                 setLecturerName('');
                 setUploaderName('');
+                setStudentGroup('');
+                setSemester('');
+                setAcademicYear('');
+                setStudentCount('');
               }}
               className="px-5 py-2.5 rounded-full bg-purple-100 hover:bg-purple-200 text-[#4a148c] text-xs font-bold transition-colors cursor-pointer"
             >
@@ -339,6 +384,23 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Student Group (บรรพชิต / คฤหัสถ์) */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#4a148c] mb-1">
+                    กลุ่มนิสิต (บรรพชิต / คฤหัสถ์) *
+                  </label>
+                  <select
+                    value={studentGroup}
+                    onChange={(e) => setStudentGroup(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-2xl bg-white border border-[#f8bbd0] text-[#4a148c] text-xs font-semibold outline-none focus:border-[#ec407a] focus:ring-2 focus:ring-pink-200"
+                    required
+                  >
+                    <option value="">-- กรุณาเลือกกลุ่มนิสิต --</option>
+                    <option value="บรรพชิต">บรรพชิต (พระภิกษุ / สามเณร)</option>
+                    <option value="คฤหัสถ์">คฤหัสถ์ (บุคคลทั่วไป)</option>
+                  </select>
+                </div>
+
                 {/* Year select */}
                 <div>
                   <label className="block text-xs font-semibold text-[#4a148c] mb-1">
@@ -376,7 +438,7 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
                 </div>
 
                 {/* Department select / custom input */}
-                <div className="sm:col-span-2">
+                <div>
                   <label className="block text-xs font-semibold text-[#4a148c] mb-1">
                     สาขาวิชา *
                   </label>
@@ -387,6 +449,34 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
                     placeholder="เช่น สาขาวิชารัฐประศาสนศาสตร์ หรือ สาขาวิชาศาสนาและปรัชญา"
                     className="w-full px-3.5 py-2.5 rounded-2xl bg-white border border-[#f8bbd0] text-[#4a148c] text-xs font-semibold outline-none focus:border-[#ec407a] focus:ring-2 focus:ring-pink-200"
                     required
+                  />
+                </div>
+
+                {/* Semester */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#4a148c] mb-1">
+                    ภาคเรียนที่
+                  </label>
+                  <input
+                    type="text"
+                    value={semester}
+                    onChange={(e) => setSemester(e.target.value)}
+                    placeholder="เช่น 1, 2"
+                    className="w-full px-3.5 py-2.5 rounded-2xl bg-white border border-[#f8bbd0] text-[#4a148c] text-xs font-semibold outline-none focus:border-[#ec407a] focus:ring-2 focus:ring-pink-200"
+                  />
+                </div>
+
+                {/* Academic Year */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#4a148c] mb-1">
+                    ปีการศึกษา
+                  </label>
+                  <input
+                    type="text"
+                    value={academicYear}
+                    onChange={(e) => setAcademicYear(e.target.value)}
+                    placeholder="เช่น 2569"
+                    className="w-full px-3.5 py-2.5 rounded-2xl bg-white border border-[#f8bbd0] text-[#4a148c] text-xs font-semibold outline-none focus:border-[#ec407a] focus:ring-2 focus:ring-pink-200"
                   />
                 </div>
 
@@ -420,6 +510,21 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
                   />
                 </div>
 
+                {/* Student Count */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#4a148c] mb-1">
+                    สรุปยอดจำนวนนิสิต (คน)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={studentCount}
+                    onChange={(e) => setStudentCount(e.target.value)}
+                    placeholder="เช่น 25"
+                    className="w-full px-3.5 py-2.5 rounded-2xl bg-white border border-[#f8bbd0] text-[#4a148c] text-xs font-semibold outline-none focus:border-[#ec407a] focus:ring-2 focus:ring-pink-200"
+                  />
+                </div>
+
                 {/* Lecturer Name */}
                 <div>
                   <label className="block text-xs font-semibold text-[#4a148c] mb-1">
@@ -436,7 +541,7 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
                 </div>
 
                 {/* Uploader Name */}
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-[#4a148c] mb-1">
                     ผู้อัพโหลด *
                   </label>
@@ -471,7 +576,7 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
               </div>
 
               <p className="text-[11px] text-[#7b1fa2]/70 leading-relaxed">
-                * ไฟล์จะถูกเปลี่ยนชื่อตามรูปแบบมาตรฐาน: <code className="font-bold text-[#4a148c]">(ชั้นปี)(สาขาวิชา)(รหัสวิชา)(ชื่อวิชา)(ผู้บรรยาย)</code> และบันทึกเข้าโฟลเดอร์ Google Drive ปลายทางโดยอัตโนมัติ
+                * ไฟล์จะถูกเปลี่ยนชื่อตามรูปแบบมาตรฐาน: <code className="font-bold text-[#4a148c]">(กลุ่ม)(ชั้นปี)(สาขาวิชา)(รหัสวิชา)(ชื่อวิชา)(ผู้บรรยาย)</code> และบันทึกเข้าโฟลเดอร์ Google Drive ปลายทางโดยอัตโนมัติ
               </p>
             </div>
 

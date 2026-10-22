@@ -67,6 +67,10 @@ export interface GradeSubmission {
   subjectName: string; // e.g. "การบริหารรัฐกิจเบื้องต้น"
   lecturerName: string; // e.g. "ผศ.ดร.สมชาย ใจดี"
   uploaderName: string; // e.g. "อาจารย์สมชาย"
+  studentGroup?: string; // e.g. "บรรพชิต" หรือ "คฤหัสถ์"
+  semester?: string; // e.g. "1", "2", "3"
+  academicYear?: string; // e.g. "2569"
+  studentCount?: number; // จำนวนนิสิตในรายวิชา
   standardFileName: string; // e.g. "(ปี 1)(สาขาวิชารัฐประศาสนศาสตร์)(รปศ101)(การบริหารรัฐกิจเบื้องต้น)(ผศ.ดร.สมชาย ใจดี).xlsx"
   originalFileName: string;
   fileSize: string;

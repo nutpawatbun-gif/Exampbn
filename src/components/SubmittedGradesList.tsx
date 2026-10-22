@@ -118,6 +118,11 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
                     <span className="px-2 py-0.5 rounded-full bg-purple-100 text-[#4a148c] font-bold text-[10px] border border-purple-200">
                       {item.year}
                     </span>
+                    {item.studentGroup && (
+                      <span className="px-2 py-0.5 rounded-full bg-pink-100 text-[#c2185b] font-bold text-[10px] border border-pink-200">
+                        {item.studentGroup}
+                      </span>
+                    )}
                   </div>
                   <span className="font-mono font-bold text-[#c2185b] text-xs">
                     {item.subjectCode}
@@ -204,9 +209,16 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
 
                     {/* 2. ชั้นปี */}
                     <td className="py-3.5 px-4 whitespace-nowrap">
-                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-purple-100 text-[#4a148c] font-bold text-[11px] border border-purple-200">
-                        {item.year}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-purple-100 text-[#4a148c] font-bold text-[11px] border border-purple-200">
+                          {item.year}
+                        </span>
+                        {item.studentGroup && (
+                          <span className="inline-block px-2 py-0.5 rounded-full bg-pink-100 text-[#c2185b] font-bold text-[10px] border border-pink-200">
+                            {item.studentGroup}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* 3. รหัสวิชา */}
@@ -220,9 +232,19 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
                         <span className="font-bold text-slate-900 block leading-snug">
                           {item.subjectName}
                         </span>
-                        <span className="text-[11px] text-[#7b1fa2]/70 block mt-0.5">
-                          {item.department}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[#7b1fa2]/70 mt-0.5">
+                          <span>{item.department}</span>
+                          {(item.semester || item.academicYear) && (
+                            <span>
+                              • {item.semester ? `ภาค ${item.semester}` : ''}
+                              {item.semester && item.academicYear ? '/' : ''}
+                              {item.academicYear ? `${item.academicYear}` : ''}
+                            </span>
+                          )}
+                          {item.studentCount != null && item.studentCount > 0 && (
+                            <span>• {item.studentCount} คน</span>
+                          )}
+                        </div>
                       </div>
                     </td>
 
