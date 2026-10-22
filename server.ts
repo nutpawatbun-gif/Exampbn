@@ -6,6 +6,7 @@ import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { createDefaultSharePackage, DEFAULT_FILES } from './src/data/defaultDriveFolder.ts';
 import { SharePackage, DriveFileItem, GradeSubmission } from './src/types/share.ts';
+import { parseGradeSheetData } from './src/utils/gradeParser.ts';
 import { GoogleGenAI } from '@google/genai';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
@@ -753,149 +754,21 @@ app.post('/api/parse-grade-file', upload.single('file'), (req: Request, res: Res
   }
 
   try {
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-
-    let extractedYear = '';
-    let extractedFaculty = '';
-    let extractedDepartment = '';
-    let extractedSubjectCode = '';
-    let extractedSubjectName = '';
-    let extractedLecturer = '';
-    let extractedSemester = '';
-    let extractedAcademicYear = '';
-    let extractedStudentCount = 0;
-
-    // Inspect first 35 rows and 20 columns for metadata
-    const maxRow = 35;
-    const maxCol = 20;
-
-    // Track rows that likely contain student data (rows with numeric student IDs or sequential numbers)
-    let studentDataRowStart = -1;
-    let studentDataRowEnd = -1;
-
-    for (let r = 0; r < maxRow; r++) {
-      for (let c = 0; c < maxCol; c++) {
-        const cell = sheet[XLSX.utils.encode_cell({ r, c })];
-        if (!cell || typeof cell.v !== 'string') continue;
-        const text = cell.v.trim();
-
-        // 1. Detect Year e.g. "ชั้นปีที่ 1", "ปี 1", "ปี 2"
-        if (!extractedYear) {
-          const yrMatch = text.match(/ชั้นปีที่\s*([1-4])|ปี\s*([1-4])/);
-          if (yrMatch) {
-            extractedYear = `ปี ${yrMatch[1] || yrMatch[2]}`;
-          }
-        }
-
-        // 2. Detect Faculty
-        if (!extractedFaculty) {
-          if (text.includes('พุทธศาสตร์')) extractedFaculty = 'คณะพุทธศาสตร์';
-          else if (text.includes('สังคมศาสตร์')) extractedFaculty = 'คณะสังคมศาสตร์';
-          else if (text.includes('ครุศาสตร์')) extractedFaculty = 'คณะครุศาสตร์';
-          else if (text.includes('มนุษยศาสตร์')) extractedFaculty = 'คณะมนุษยศาสตร์';
-        }
-
-        // 3. Detect Department
-        if (!extractedDepartment) {
-          const deptMatch = text.match(/สาขาวิชา([ก-๙a-zA-Z\s]+)/);
-          if (deptMatch) {
-            const rawDept = deptMatch[0].trim();
-            extractedDepartment = rawDept.split(/\s+/)[0] + (deptMatch[1] ? deptMatch[1].trim() : '');
-          }
-        }
-
-        // 4. Detect Subject Code and Subject Name (e.g. "วิชา ... รหัสวิชา ...")
-        if (text.includes('วิชา') || text.includes('รหัสวิชา')) {
-          const cleanDots = text.replace(/\.{3,}/g, ' ').replace(/…+/g, ' ');
-
-          const codeMatch = cleanDots.match(/รหัสวิชา\s*[:\s]?\s*([ก-๙a-zA-Z0-9\-_]+)/);
-          if (codeMatch && codeMatch[1] && codeMatch[1].trim().length > 1) {
-            extractedSubjectCode = codeMatch[1].trim();
-          }
-
-          const subjMatch = cleanDots.match(/วิชา\s*[:\s]?\s*([ก-๙a-zA-Z0-9\s]+?)(?=\s*รหัสวิชา|$)/);
-          if (subjMatch && subjMatch[1] && subjMatch[1].trim().length > 1) {
-            extractedSubjectName = subjMatch[1].trim();
-          }
-        }
-
-        // 5. Detect Lecturer
-        if (!extractedLecturer && text.includes('อาจารย์ผู้บรรยาย')) {
-          const cleanLect = text.replace(/อาจารย์ผู้บรรยาย\s*[:\s]?/g, '').replace(/\.{3,}/g, '').replace(/…+/g, '').replace(/M$/, '').trim();
-          if (cleanLect.length > 2) {
-            extractedLecturer = cleanLect;
-          }
-        }
-
-        // 6. Detect Semester e.g. "ภาคเรียนที่ 1", "ภาคการศึกษาที่ 2"
-        if (!extractedSemester) {
-          const semMatch = text.match(/ภาคเรียนที่\s*([1-3])|ภาคการศึกษาที่\s*([1-3])|ภาค\s*([1-3])\b/);
-          if (semMatch) {
-            extractedSemester = semMatch[1] || semMatch[2] || semMatch[3];
-          }
-        }
-
-        // 7. Detect Academic Year e.g. "ปีการศึกษา 2569", "พ.ศ. 2569"
-        if (!extractedAcademicYear) {
-          const ayMatch = text.match(/ปีการศึกษา\s*(25[0-9]{2})|พ\.ศ\.\s*(25[0-9]{2})/);
-          if (ayMatch) {
-            extractedAcademicYear = ayMatch[1] || ayMatch[2];
-          }
-        }
-      }
-    }
-
-    // 8. Count student rows: scan all rows, look for rows with sequential numbers (1, 2, 3...) or student IDs
-    // Student ID pattern for MCU: 6-digit numbers starting with common prefixes
-    const allRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as any[][];
-    let seqCount = 0;
-    for (let r = 0; r < allRows.length; r++) {
-      const row = allRows[r];
-      if (!row || row.length === 0) continue;
-      // Look for a cell that is a small positive integer (student sequence number 1..200)
-      for (let c = 0; c < Math.min(row.length, 5); c++) {
-        const cellVal = row[c];
-        const num = typeof cellVal === 'number' ? cellVal : parseInt(String(cellVal), 10);
-        if (!isNaN(num) && num >= 1 && num <= 200 && num === seqCount + 1) {
-          seqCount++;
-          if (seqCount === 1) studentDataRowStart = r;
-          studentDataRowEnd = r;
-          break;
-        }
-      }
-    }
-    if (seqCount > 0) extractedStudentCount = seqCount;
-
-    // Try fallback from original filename if still empty
-    const orig = req.file.originalname;
-    if (!extractedYear) {
-      const yrMatch = orig.match(/ปี\s*([1-4])/);
-      if (yrMatch) extractedYear = `ปี ${yrMatch[1]}`;
-    }
-    if (!extractedDepartment) {
-      if (orig.includes('ศาสนาและปรัชญา')) extractedDepartment = 'สาขาวิชาศาสนาและปรัชญา';
-      else if (orig.includes('รัฐประศาสนศาสตร์')) extractedDepartment = 'สาขาวิชารัฐประศาสนศาสตร์';
-      else if (orig.includes('พระพุทธศาสนา')) extractedDepartment = 'สาขาวิชาพระพุทธศาสนา';
-    }
-    if (!extractedFaculty) {
-      if (orig.includes('พุทธศาสตร์')) extractedFaculty = 'คณะพุทธศาสตร์';
-      else if (orig.includes('สังคมศาสตร์')) extractedFaculty = 'คณะสังคมศาสตร์';
-    }
+    const parsed = parseGradeSheetData(req.file.buffer, req.file.originalname);
 
     res.json({
       success: true,
       data: {
-        year: extractedYear || 'ปี 1',
-        faculty: extractedFaculty || 'คณะพุทธศาสตร์',
-        department: extractedDepartment || '',
-        subjectCode: extractedSubjectCode || '',
-        subjectName: extractedSubjectName || '',
-        lecturerName: extractedLecturer || '',
-        semester: extractedSemester || '',
-        academicYear: extractedAcademicYear || '',
-        studentCount: extractedStudentCount || 0,
+        year: parsed.year || 'ปี 1',
+        faculty: parsed.faculty || 'คณะพุทธศาสตร์',
+        department: parsed.department || '',
+        subjectCode: parsed.subjectCode || '',
+        subjectName: parsed.subjectName || '',
+        lecturerName: parsed.lecturerName || '',
+        studentGroup: parsed.studentGroup || '',
+        semester: parsed.semester || '',
+        academicYear: parsed.academicYear || '',
+        studentCount: parsed.studentCount || 0,
         originalFileName: req.file.originalname,
         fileSizeBytes: req.file.size,
       },

@@ -16,6 +16,7 @@ import {
   Check,
 } from 'lucide-react';
 import { GradeSubmission } from '../types/share';
+import { parseGradeSheetData } from '../utils/gradeParser';
 
 interface GradeReturnFormProps {
   onSuccess: (submission: GradeSubmission) => void;
@@ -82,36 +83,93 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
     setParseMessage(null);
     setIsParsing(true);
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+    let detectedCount = 0;
 
+    // 1. Instant Client-Side Parsing directly in browser (works even offline or on static host)
     try {
+      const buffer = await selectedFile.arrayBuffer();
+      const parsed = parseGradeSheetData(buffer, selectedFile.name);
+
+      if (parsed.studentGroup) {
+        setStudentGroup(parsed.studentGroup);
+        detectedCount++;
+      }
+      if (parsed.year) {
+        setYear(parsed.year);
+        detectedCount++;
+      }
+      if (parsed.faculty) {
+        setFaculty(parsed.faculty);
+        detectedCount++;
+      }
+      if (parsed.department) {
+        setDepartment(parsed.department);
+        detectedCount++;
+      }
+      if (parsed.subjectCode) {
+        setSubjectCode(parsed.subjectCode);
+        detectedCount++;
+      }
+      if (parsed.subjectName) {
+        setSubjectName(parsed.subjectName);
+        detectedCount++;
+      }
+      if (parsed.lecturerName) {
+        setLecturerName(parsed.lecturerName);
+        detectedCount++;
+      }
+      if (parsed.semester) {
+        setSemester(parsed.semester);
+        detectedCount++;
+      }
+      if (parsed.academicYear) {
+        setAcademicYear(parsed.academicYear);
+        detectedCount++;
+      }
+      if (parsed.studentCount && parsed.studentCount > 0) {
+        setStudentCount(String(parsed.studentCount));
+        detectedCount++;
+      }
+
+      if (detectedCount > 0) {
+        setParseMessage(
+          lang === 'th'
+            ? `ระบบตรวจพบและดึงข้อมูลจากไฟล์เรียบร้อยแล้ว (${detectedCount} หัวข้อ) กรุณาตรวจสอบหรือแก้ไขข้อมูลก่อนกดส่ง`
+            : `Excel data parsed successfully (${detectedCount} fields detected)! Please review before submitting.`
+        );
+      }
+    } catch (clientErr) {
+      console.warn('Client-side excel parse error:', clientErr);
+    }
+
+    // 2. Server-side parsing verification
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
       const res = await fetch('/api/parse-grade-file', {
         method: 'POST',
         body: formData,
       });
-      const json = await res.json();
 
-      if (res.ok && json.success) {
-        const d = json.data;
-        if (d.year) setYear(d.year);
-        if (d.faculty) setFaculty(d.faculty);
-        if (d.department) setDepartment(d.department);
-        if (d.subjectCode) setSubjectCode(d.subjectCode);
-        if (d.subjectName) setSubjectName(d.subjectName);
-        if (d.lecturerName) setLecturerName(d.lecturerName);
-        if (d.semester) setSemester(d.semester);
-        if (d.academicYear) setAcademicYear(d.academicYear);
-        if (d.studentCount && d.studentCount > 0) setStudentCount(String(d.studentCount));
-
-        setParseMessage(
-          lang === 'th'
-            ? 'อ่านข้อมูลจากใบกรอกคะแนนเรียบร้อยแล้ว กรุณาตรวจสอบหรือเพิ่มเติมข้อมูลก่อนส่ง'
-            : 'Excel data parsed successfully! Please review before submitting.'
-        );
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          const d = json.data;
+          if (d.studentGroup) setStudentGroup((prev) => prev || d.studentGroup);
+          if (d.year) setYear((prev) => prev || d.year);
+          if (d.faculty) setFaculty((prev) => prev || d.faculty);
+          if (d.department) setDepartment((prev) => prev || d.department);
+          if (d.subjectCode) setSubjectCode((prev) => prev || d.subjectCode);
+          if (d.subjectName) setSubjectName((prev) => prev || d.subjectName);
+          if (d.lecturerName) setLecturerName((prev) => prev || d.lecturerName);
+          if (d.semester) setSemester((prev) => prev || d.semester);
+          if (d.academicYear) setAcademicYear((prev) => prev || d.academicYear);
+          if (d.studentCount && d.studentCount > 0) setStudentCount((prev) => prev || String(d.studentCount));
+        }
       }
-    } catch (err) {
-      console.warn('Auto parse warning:', err);
+    } catch (serverErr) {
+      console.warn('Server parse optional check:', serverErr);
     } finally {
       setIsParsing(false);
     }
