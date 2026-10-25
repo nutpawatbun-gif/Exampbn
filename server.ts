@@ -781,120 +781,134 @@ app.post('/api/parse-grade-file', upload.single('file'), (req: Request, res: Res
 
 // 14. Submit completed grade file
 app.post('/api/submit-grade', upload.single('file'), async (req: Request, res: Response) => {
-  const {
-    year,
-    faculty,
-    department,
-    subjectCode,
-    subjectName,
-    lecturerName,
-    uploaderName,
-    studentGroup,
-    semester,
-    academicYear,
-    studentCount,
-  } = req.body;
-
-  if (!req.file) {
-    return res.status(400).json({ success: false, message: 'กรุณาแนบไฟล์ใบกรอกเกรด' });
-  }
-
-  if (!year || !department || !subjectCode || !subjectName || !lecturerName || !uploaderName) {
-    return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วนทุกช่อง' });
-  }
-
-  // Standard naming format:
-  // (บรรพชิต)(ปี 1)(สาขาวิชารัฐประศาสนศาสตร์)(รปศ101)(การบริหารรัฐกิจเบื้องต้น)(ผศ.ดร.สมชาย ใจดี).xlsx
-  const ext = path.extname(req.file.originalname) || '.xlsx';
-  const cleanYear = year.trim();
-  const cleanDept = department.trim();
-  const cleanCode = subjectCode.trim().replace(/[\s/\\?%*:|"<>]/g, '');
-  const cleanName = subjectName.trim().replace(/[\s/\\?%*:|"<>]/g, ' ');
-  const cleanLecturer = lecturerName.trim().replace(/[\s/\\?%*:|"<>]/g, ' ');
-  const cleanUploader = uploaderName.trim();
-  const cleanGroup = (studentGroup || '').trim();
-  const cleanSemester = (semester || '').trim();
-  const cleanAcademicYear = (academicYear || '').trim();
-  const cleanStudentCount = parseInt(String(studentCount || '0'), 10) || 0;
-
-  const groupPrefix = cleanGroup ? `(${cleanGroup})` : '';
-  const standardFileName = `${groupPrefix}(${cleanYear})(${cleanDept})(${cleanCode})(${cleanName})(${cleanLecturer})${ext}`;
-
-  // Save file locally to server uploads as backup
-  const safeDiskName = `${Date.now()}_${standardFileName}`;
-  const diskPath = path.join(UPLOADS_DIR, safeDiskName);
   try {
-    fs.writeFileSync(diskPath, req.file.buffer);
-  } catch (err) {
-    console.error('Failed to save file on disk:', err);
-  }
+    const {
+      year,
+      faculty,
+      department,
+      subjectCode,
+      subjectName,
+      lecturerName,
+      uploaderName,
+      studentGroup,
+      semester,
+      academicYear,
+      studentCount,
+    } = req.body;
 
-  // Upload directly to Google Drive folder via Google Apps Script Webhook
-  const GOOGLE_SCRIPT_URL =
-    'https://script.google.com/macros/s/AKfycbzRMcEFXIB3PwxEH_jyg-px9-Za711cAjiQz1dJoQnsbl7wAA2rsKktJbK3ndX1MC6CUg/exec';
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'กรุณาแนบไฟล์ใบกรอกเกรด' });
+    }
 
-  let googleDriveFileId: string | null = null;
-  let googleDriveFileUrl: string | null = null;
+    if (!year || !department || !subjectCode || !subjectName || !lecturerName || !uploaderName) {
+      return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วนทุกช่อง' });
+    }
 
-  try {
-    const drivePayload = {
-      fileName: standardFileName,
-      fileBase64: req.file.buffer.toString('base64'),
-      mimeType: req.file.mimetype || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    // Standard naming format:
+    // (บรรพชิต)(ปี 1)(สาขาวิชารัฐประศาสนศาสตร์)(รปศ101)(การบริหารรัฐกิจเบื้องต้น)(ผศ.ดร.สมชาย ใจดี).xlsx
+    const ext = path.extname(req.file.originalname) || '.xlsx';
+    const cleanYear = (year || 'ปี 1').trim();
+    const cleanDept = (department || 'สาขาวิชา').trim().replace(/[/\\?%*:|"<>]/g, '');
+    const cleanCode = (subjectCode || 'รหัสวิชา').trim().replace(/[\s/\\?%*:|"<>]/g, '');
+    const cleanName = (subjectName || 'ชื่อรายวิชา').trim().replace(/[\s/\\?%*:|"<>]/g, ' ');
+    const cleanLecturer = (lecturerName || 'ผู้บรรยาย').trim().replace(/[\s/\\?%*:|"<>]/g, ' ');
+    const cleanUploader = (uploaderName || 'ผู้อัพโหลด').trim();
+    const cleanGroup = (studentGroup || '').trim().replace(/[/\\?%*:|"<>]/g, '');
+    const cleanSemester = (semester || '').trim();
+    const cleanAcademicYear = (academicYear || '').trim();
+    const cleanStudentCount = parseInt(String(studentCount || '0'), 10) || 0;
+
+    const groupPrefix = cleanGroup ? `(${cleanGroup})` : '';
+    const standardFileName = `${groupPrefix}(${cleanYear})(${cleanDept})(${cleanCode})(${cleanName})(${cleanLecturer})${ext}`;
+
+    // Save file locally to server uploads as backup
+    const safeDiskName = `${Date.now()}_${standardFileName}`;
+    const diskPath = path.join(UPLOADS_DIR, safeDiskName);
+    try {
+      if (!fs.existsSync(UPLOADS_DIR)) {
+        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      }
+      fs.writeFileSync(diskPath, req.file.buffer);
+    } catch (err) {
+      console.error('Failed to save file on disk:', err);
+    }
+
+    // Upload directly to Google Drive folder via Google Apps Script Webhook
+    const GOOGLE_SCRIPT_URL =
+      'https://script.google.com/macros/s/AKfycbzRMcEFXIB3PwxEH_jyg-px9-Za711cAjiQz1dJoQnsbl7wAA2rsKktJbK3ndX1MC6CUg/exec';
+
+    let googleDriveFileId: string | null = null;
+    let googleDriveFileUrl: string | null = null;
+
+    try {
+      const drivePayload = {
+        fileName: standardFileName,
+        fileBase64: req.file.buffer.toString('base64'),
+        mimeType: req.file.mimetype || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      const driveRes = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(drivePayload),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        redirect: 'follow',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (driveRes.ok) {
+        const driveData: any = await driveRes.json();
+        if (driveData.status === 'success') {
+          googleDriveFileId = driveData.fileId;
+          googleDriveFileUrl = driveData.fileUrl;
+          console.log(`Uploaded to Google Drive successfully: ${standardFileName} (ID: ${driveData.fileId})`);
+        } else {
+          console.warn('Google Script return warning:', driveData.message);
+        }
+      }
+    } catch (uploadErr) {
+      console.error('Google Drive Webhook upload error:', uploadErr);
+    }
+
+    const submission: GradeSubmission = {
+      id: `sub-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      year: cleanYear,
+      faculty: (faculty || '').trim(),
+      department: cleanDept,
+      subjectCode: cleanCode,
+      subjectName: cleanName,
+      lecturerName: cleanLecturer,
+      uploaderName: cleanUploader,
+      studentGroup: cleanGroup || undefined,
+      semester: cleanSemester || undefined,
+      academicYear: cleanAcademicYear || undefined,
+      studentCount: cleanStudentCount > 0 ? cleanStudentCount : undefined,
+      standardFileName,
+      originalFileName: req.file.originalname,
+      fileSize: `${Math.round(req.file.size / 1024)} KB`,
+      submittedAt: new Date().toISOString(),
+      storagePath: safeDiskName,
+      googleDriveFileId: googleDriveFileId || null,
+      googleDriveFileUrl: googleDriveFileUrl || null,
     };
 
-    const driveRes = await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify(drivePayload),
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      redirect: 'follow',
+    submissions.unshift(submission);
+    saveSubmissionsData();
+
+    res.json({
+      success: true,
+      message: 'ส่งใบกรอกเกรดและบันทึกเข้า Google Drive เรียบร้อยแล้ว',
+      submission,
+      googleDriveUploaded: Boolean(googleDriveFileId),
     });
-
-    if (driveRes.ok) {
-      const driveData: any = await driveRes.json();
-      if (driveData.status === 'success') {
-        googleDriveFileId = driveData.fileId;
-        googleDriveFileUrl = driveData.fileUrl;
-        console.log(`Uploaded to Google Drive successfully: ${standardFileName} (ID: ${driveData.fileId})`);
-      } else {
-        console.warn('Google Script return warning:', driveData.message);
-      }
-    }
-  } catch (uploadErr) {
-    console.error('Google Drive Webhook upload error:', uploadErr);
+  } catch (err: any) {
+    console.error('Unhandled submit-grade error:', err);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการประมวลผลไฟล์' });
   }
-
-  const submission: GradeSubmission = {
-    id: `sub-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-    year: cleanYear,
-    faculty: (faculty || '').trim(),
-    department: cleanDept,
-    subjectCode: cleanCode,
-    subjectName: cleanName,
-    lecturerName: cleanLecturer,
-    uploaderName: cleanUploader,
-    studentGroup: cleanGroup || undefined,
-    semester: cleanSemester || undefined,
-    academicYear: cleanAcademicYear || undefined,
-    studentCount: cleanStudentCount > 0 ? cleanStudentCount : undefined,
-    standardFileName,
-    originalFileName: req.file.originalname,
-    fileSize: `${Math.round(req.file.size / 1024)} KB`,
-    submittedAt: new Date().toISOString(),
-    storagePath: safeDiskName,
-    googleDriveFileId: googleDriveFileId || null,
-    googleDriveFileUrl: googleDriveFileUrl || null,
-  };
-
-  submissions.unshift(submission);
-  saveSubmissionsData();
-
-  res.json({
-    success: true,
-    message: 'ส่งใบกรอกเกรดและบันทึกเข้า Google Drive เรียบร้อยแล้ว',
-    submission,
-    googleDriveUploaded: Boolean(googleDriveFileId),
-  });
+});
 });
 
 // 15. Get list of all submitted grades (Strict Real-time File Existence Verification)

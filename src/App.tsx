@@ -68,7 +68,13 @@ export default function App() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [lang, setLang] = useState<'th' | 'en'>('th');
   const [isLoading, setIsLoading] = useState(true);
-  const [submissions, setSubmissions] = useState<GradeSubmission[]>([]);
+  const [submissions, setSubmissions] = useState<GradeSubmission[]>(() => {
+    try {
+      const saved = localStorage.getItem('mcu_grade_submissions');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
 
   // Admin authentication state
   const [adminToken, setAdminToken] = useState<string>(() => {
@@ -79,22 +85,34 @@ export default function App() {
 
   const [isRefreshingSubmissions, setIsRefreshingSubmissions] = useState(false);
 
-  // Fetch submissions from backend with real-time file existence check
+  // Fetch submissions from backend with real-time file existence check (and fallback to localStorage on static hosts)
   const fetchSubmissions = async () => {
     setIsRefreshingSubmissions(true);
     try {
       const res = await fetch('/api/grade-submissions');
       if (res.ok) {
         const json = await res.json();
-        if (json.submissions) {
+        if (json && json.submissions) {
           setSubmissions(json.submissions);
+          try {
+            localStorage.setItem('mcu_grade_submissions', JSON.stringify(json.submissions));
+          } catch {}
+          return;
         }
       }
     } catch (err) {
-      console.warn('Could not fetch submissions:', err);
+      console.warn('Could not fetch submissions from server:', err);
     } finally {
       setIsRefreshingSubmissions(false);
     }
+
+    // Static host fallback
+    try {
+      const saved = localStorage.getItem('mcu_grade_submissions');
+      if (saved) {
+        setSubmissions(JSON.parse(saved));
+      }
+    } catch {}
   };
 
   // Load shares from backend on mount (or on admin login/logout)
@@ -370,7 +388,13 @@ export default function App() {
           <div className="py-2">
             <GradeReturnForm
               onSuccess={(newSub) => {
-                setSubmissions((prev) => [newSub, ...prev]);
+                setSubmissions((prev) => {
+                  const updated = [newSub, ...prev.filter((s) => s.id !== newSub.id)];
+                  try {
+                    localStorage.setItem('mcu_grade_submissions', JSON.stringify(updated));
+                  } catch {}
+                  return updated;
+                });
               }}
               onViewList={() => setCurrentMode('return-list')}
               lang={lang}
