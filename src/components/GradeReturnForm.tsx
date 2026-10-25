@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Lock,
   ShieldCheck,
+  FolderOpen,
 } from 'lucide-react';
 import { GradeSubmission } from '../types/share';
 import { parseGradeSheetData } from '../utils/gradeParser';
@@ -430,6 +431,18 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Go to Storage Folder Button */}
+          <a
+            href={DEFAULT_DRIVE_FOLDER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3.5 py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+            title="เปิดโฟลเดอร์จัดเก็บไฟล์ใน Google Drive"
+          >
+            <FolderOpen className="w-4 h-4 text-emerald-600" />
+            <span>{lang === 'th' ? '📁 โฟลเดอร์เก็บไฟล์' : 'Storage Folder'}</span>
+          </a>
+
           {/* View Submissions List Button */}
           <button
             type="button"
@@ -511,39 +524,31 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            {/* View File in Google Drive (Admin Only Button) */}
-            <button
-              type="button"
-              onClick={() => {
-                const targetDriveUrl =
-                  submittedData.googleDriveFileUrl ||
-                  (submittedData.googleDriveFileId
-                    ? `https://drive.google.com/file/d/${submittedData.googleDriveFileId}/view`
-                    : DEFAULT_DRIVE_FOLDER_URL);
-
-                if (effectiveIsAdmin) {
-                  window.open(targetDriveUrl, '_blank', 'noopener,noreferrer');
-                } else {
-                  setShowAdminPinModal(true);
-                }
-              }}
-              className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer ${
-                effectiveIsAdmin
-                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-200 hover:shadow-lg'
-                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 hover:border-emerald-400'
-              }`}
+            {/* Go to Storage Folder in Google Drive */}
+            <a
+              href={DEFAULT_DRIVE_FOLDER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer hover:shadow-lg"
+              title="เปิดโฟลเดอร์จัดเก็บไฟล์ใน Google Drive"
             >
-              {effectiveIsAdmin ? (
-                <ExternalLink className="w-4 h-4 text-emerald-100" />
-              ) : (
-                <Lock className="w-4 h-4 text-emerald-600" />
-              )}
-              <span>
-                {lang === 'th'
-                  ? 'เข้าดูไฟล์ใน Google Drive (เฉพาะ Admin)'
-                  : 'View in Google Drive (Admin Only)'}
-              </span>
-            </button>
+              <FolderOpen className="w-4 h-4 text-emerald-100" />
+              <span>{lang === 'th' ? '📁 ไปยังโฟลเดอร์เก็บไฟล์ (Google Drive)' : 'Go to Storage Folder (Drive)'}</span>
+            </a>
+
+            {/* View Specific Uploaded File in Google Drive */}
+            {submittedData.googleDriveFileUrl && (
+              <a
+                href={submittedData.googleDriveFileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title="เปิดดูไฟล์ที่เพิ่งอัปโหลดนี้โดยตรง"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{lang === 'th' ? 'ดูไฟล์นี้ใน Drive' : 'View This File'}</span>
+              </a>
+            )}
 
             <button
               type="button"

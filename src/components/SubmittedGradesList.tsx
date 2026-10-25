@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   ShieldCheck,
   ExternalLink,
+  FolderOpen,
 } from 'lucide-react';
 import { GradeSubmission } from '../types/share';
 import { DEFAULT_DRIVE_FOLDER_URL } from '../data/defaultDriveFolder';
@@ -65,19 +66,17 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* View Google Drive Folder for Admin */}
-            {effectiveIsAdmin && (
-              <a
-                href={DEFAULT_DRIVE_FOLDER_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3.5 py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
-                title="เข้าดูโฟลเดอร์ Google Drive (เฉพาะ Admin)"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
-                <span>โฟลเดอร์ Drive (Admin)</span>
-              </a>
-            )}
+            {/* Go to Storage Folder in Google Drive */}
+            <a
+              href={DEFAULT_DRIVE_FOLDER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+              title="เปิดโฟลเดอร์จัดเก็บไฟล์ทั้งหมดใน Google Drive"
+            >
+              <FolderOpen className="w-4 h-4 text-emerald-600" />
+              <span>{lang === 'th' ? '📁 ไปยังโฟลเดอร์เก็บไฟล์' : 'Storage Folder'}</span>
+            </a>
 
             {/* Realtime manual refresh button */}
             {onRefresh && (
