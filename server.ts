@@ -911,37 +911,36 @@ app.post('/api/submit-grade', upload.single('file'), async (req: Request, res: R
 });
 });
 
-// 15. Get list of all submitted grades (Strict Real-time File Existence Verification)
+// 15. Get list of all submitted grades
 app.get('/api/grade-submissions', (req: Request, res: Response) => {
-  // Real-time check: ตรวจสอบความมีอยู่จริงของไฟล์ในเครื่อง (Local Storage uploads/submitted-grades)
-  // หากไฟล์ถูกลบออกไปจริง (เช่น การลบไฟล์ทดสอบ) รายการนั้นจะไม่ปรากฏในตารางทันที
-  const activeSubmissions = submissions.filter((sub) => {
-    // 1. ตรวจสอบจาก storagePath ที่บันทึกไว้
-    if (sub.storagePath) {
-      const filePath = path.join(UPLOADS_DIR, sub.storagePath);
-      if (fs.existsSync(filePath)) {
-        return true;
-      }
-    }
-
-    // 2. ตรวจสอบไฟล์ใน UPLOADS_DIR ว่ามีไฟล์ที่ตรงกับชื่อมาตรฐานนี้อยู่จริงหรือไม่
-    try {
-      if (fs.existsSync(UPLOADS_DIR)) {
-        const files = fs.readdirSync(UPLOADS_DIR);
-        const exists = files.some((f) => f.includes(sub.standardFileName));
-        if (exists) return true;
-      }
-    } catch {
-      // ignore
-    }
-
-    // หากไม่มีไฟล์หลงเหลืออยู่ในไดเรกทอรีจัดเก็บจริง ให้ตัดออกทันที
-    return false;
+  res.json({
+    success: true,
+    submissions: submissions || [],
   });
+});
+
+// 15.1 Real-time cross-browser sync endpoint for submissions
+app.post('/api/sync-submissions', (req: Request, res: Response) => {
+  const { submission, list } = req.body;
+  if (submission && submission.id) {
+    if (!submissions.some((s) => s.id === submission.id)) {
+      submissions.unshift(submission);
+      saveSubmissionsData();
+    }
+  } else if (Array.isArray(list) && list.length > 0) {
+    let changed = false;
+    list.forEach((item) => {
+      if (item && item.id && !submissions.some((s) => s.id === item.id)) {
+        submissions.unshift(item);
+        changed = true;
+      }
+    });
+    if (changed) saveSubmissionsData();
+  }
 
   res.json({
     success: true,
-    submissions: activeSubmissions,
+    submissions: submissions || [],
   });
 });
 

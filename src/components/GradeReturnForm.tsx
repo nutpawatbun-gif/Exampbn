@@ -371,7 +371,7 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
     }
 
     if (finalSubmission) {
-      // Save locally in browser so it persists across refreshes
+      // 1. Save locally in browser so it persists across refreshes
       try {
         const saved = localStorage.getItem('mcu_grade_submissions');
         const list: GradeSubmission[] = saved ? JSON.parse(saved) : [];
@@ -380,6 +380,24 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
       } catch (localErr) {
         console.warn('LocalStorage save note:', localErr);
       }
+
+      // 2. Broadcast to other tabs/browsers via BroadcastChannel
+      try {
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('mcu_grade_submissions_sync');
+          bc.postMessage(finalSubmission);
+          setTimeout(() => bc.close(), 1000);
+        }
+      } catch {}
+
+      // 3. Sync to backend API to ensure all browsers and mobile get it immediately
+      try {
+        fetch('/api/sync-submissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ submission: finalSubmission }),
+        }).catch(() => {});
+      } catch {}
 
       setSubmittedData(finalSubmission);
       onSuccess(finalSubmission);

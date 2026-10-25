@@ -85,18 +85,28 @@ export default function App() {
 
   const [isRefreshingSubmissions, setIsRefreshingSubmissions] = useState(false);
 
-  // Fetch submissions from backend with real-time file existence check (and fallback to localStorage on static hosts)
+  // Fetch submissions from backend with real-time sync
   const fetchSubmissions = async () => {
     setIsRefreshingSubmissions(true);
     try {
-      const res = await fetch('/api/grade-submissions');
+      const res = await fetch('/api/grade-submissions', {
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       if (res.ok) {
         const json = await res.json();
-        if (json && json.submissions) {
-          setSubmissions(json.submissions);
-          try {
-            localStorage.setItem('mcu_grade_submissions', JSON.stringify(json.submissions));
-          } catch {}
+        if (json && Array.isArray(json.submissions)) {
+          setSubmissions((prev) => {
+            const map = new Map<string, GradeSubmission>();
+            json.submissions.forEach((s: GradeSubmission) => map.set(s.id, s));
+            prev.forEach((s: GradeSubmission) => {
+              if (!map.has(s.id)) map.set(s.id, s);
+            });
+            const merged = Array.from(map.values());
+            try {
+              localStorage.setItem('mcu_grade_submissions', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
           return;
         }
       }
@@ -204,10 +214,30 @@ export default function App() {
       setCurrentMode('recipient');
     }
 
-    // Auto-refresh interval (every 8 seconds) for submissions
+    // Auto-refresh interval (every 5 seconds) for submissions
     const timer = setInterval(() => {
       fetchSubmissions();
-    }, 8000);
+    }, 5000);
+
+    // Cross-tab and cross-browser realtime sync channel on the same device
+    let subChannel: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        subChannel = new BroadcastChannel('mcu_grade_submissions_sync');
+        subChannel.onmessage = (event) => {
+          if (event.data && event.data.id) {
+            setSubmissions((prev) => {
+              if (prev.some((s) => s.id === event.data.id)) return prev;
+              const updated = [event.data, ...prev];
+              try {
+                localStorage.setItem('mcu_grade_submissions', JSON.stringify(updated));
+              } catch {}
+              return updated;
+            });
+          }
+        };
+      }
+    } catch {}
 
     // Real-time synchronization across different browsers (Chrome, Edge, Mobile) & tabs
     const targetShareId = shareParam || activeShareId;
@@ -250,6 +280,11 @@ export default function App() {
     return () => {
       clearInterval(timer);
       unsubscribeSync();
+      if (subChannel) {
+        try {
+          subChannel.close();
+        } catch {}
+      }
     };
   }, [activeShareId]);
 
