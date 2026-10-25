@@ -398,6 +398,11 @@ export default function App() {
               }}
               onViewList={() => setCurrentMode('return-list')}
               lang={lang}
+              isAdmin={Boolean(adminToken)}
+              onAdminLoginSuccess={(token) => {
+                setAdminToken(token);
+                sessionStorage.setItem('mcu_admin_token', token);
+              }}
             />
           </div>
         )}
@@ -410,6 +415,7 @@ export default function App() {
               onRefresh={fetchSubmissions}
               isRefreshing={isRefreshingSubmissions}
               lang={lang}
+              isAdmin={Boolean(adminToken)}
             />
           </div>
         )}

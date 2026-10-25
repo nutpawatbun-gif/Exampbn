@@ -9,8 +9,10 @@ import {
   BookOpen,
   ArrowLeft,
   ShieldCheck,
+  ExternalLink,
 } from 'lucide-react';
 import { GradeSubmission } from '../types/share';
+import { DEFAULT_DRIVE_FOLDER_URL } from '../data/defaultDriveFolder';
 
 interface SubmittedGradesListProps {
   submissions: GradeSubmission[];
@@ -18,6 +20,7 @@ interface SubmittedGradesListProps {
   onRefresh?: () => void;
   isRefreshing?: boolean;
   lang: 'th' | 'en';
+  isAdmin?: boolean;
 }
 
 export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
@@ -26,7 +29,11 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
   onRefresh,
   isRefreshing = false,
   lang,
+  isAdmin = false,
 }) => {
+  const effectiveIsAdmin = Boolean(
+    isAdmin || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('mcu_admin_token'))
+  );
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-8">
       {/* Header bar */}
@@ -58,6 +65,20 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* View Google Drive Folder for Admin */}
+            {effectiveIsAdmin && (
+              <a
+                href={DEFAULT_DRIVE_FOLDER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+                title="เข้าดูโฟลเดอร์ Google Drive (เฉพาะ Admin)"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
+                <span>โฟลเดอร์ Drive (Admin)</span>
+              </a>
+            )}
+
             {/* Realtime manual refresh button */}
             {onRefresh && (
               <button
@@ -149,6 +170,29 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
                     })}
                   </div>
                 </div>
+
+                {effectiveIsAdmin && (
+                  <div className="mt-2 pt-2 border-t border-purple-50 flex items-center justify-between">
+                    <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Google Drive</span>
+                    </span>
+                    <a
+                      href={
+                        item.googleDriveFileUrl ||
+                        (item.googleDriveFileId
+                          ? `https://drive.google.com/file/d/${item.googleDriveFileId}/view`
+                          : DEFAULT_DRIVE_FOLDER_URL)
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200"
+                    >
+                      <ExternalLink className="w-3 h-3 text-emerald-600" />
+                      <span>เปิดดูไฟล์</span>
+                    </a>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -167,6 +211,9 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
                 <th className="py-3.5 px-5">ผู้บรรยาย</th>
                 <th className="py-3.5 px-4">ผู้อัพโหลด</th>
                 <th className="py-3.5 px-4 whitespace-nowrap text-right">วันเดือนปี</th>
+                {effectiveIsAdmin && (
+                  <th className="py-3.5 px-3 text-center whitespace-nowrap">Drive (Admin)</th>
+                )}
               </tr>
             </thead>
 
@@ -174,7 +221,7 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
             <tbody className="divide-y divide-purple-50">
               {submissions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-14 text-center text-slate-500">
+                  <td colSpan={effectiveIsAdmin ? 8 : 7} className="py-14 text-center text-slate-500">
                     <FileSpreadsheet className="w-12 h-12 text-purple-300 mx-auto mb-2" />
                     <p className="font-bold text-[#4a148c] text-sm">
                       ยังไม่มีรายการส่งคืนใบกรอกเกรดในระบบ
@@ -272,6 +319,27 @@ export const SubmittedGradesList: React.FC<SubmittedGradesListProps> = ({
                       })}{' '}
                       น.
                     </td>
+
+                    {/* 8. Google Drive (Admin Only) */}
+                    {effectiveIsAdmin && (
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                        <a
+                          href={
+                            item.googleDriveFileUrl ||
+                            (item.googleDriveFileId
+                              ? `https://drive.google.com/file/d/${item.googleDriveFileId}/view`
+                              : DEFAULT_DRIVE_FOLDER_URL)
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-200 transition-colors shadow-2xs"
+                          title="เปิดไฟล์ใน Google Drive"
+                        >
+                          <ExternalLink className="w-3 h-3 text-emerald-600" />
+                          <span>ดูใน Drive</span>
+                        </a>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

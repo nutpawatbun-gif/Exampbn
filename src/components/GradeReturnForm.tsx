@@ -14,14 +14,20 @@ import {
   RefreshCw,
   Eye,
   Check,
+  ExternalLink,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import { GradeSubmission } from '../types/share';
 import { parseGradeSheetData } from '../utils/gradeParser';
+import { DEFAULT_DRIVE_FOLDER_URL } from '../data/defaultDriveFolder';
 
 interface GradeReturnFormProps {
   onSuccess: (submission: GradeSubmission) => void;
   onViewList: () => void;
   lang: 'th' | 'en';
+  isAdmin?: boolean;
+  onAdminLoginSuccess?: (token: string) => void;
 }
 
 const FACULTY_LIST = [
@@ -60,6 +66,8 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
   onSuccess,
   onViewList,
   lang,
+  isAdmin = false,
+  onAdminLoginSuccess,
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [year, setYear] = useState<string>('ปี 1');
@@ -78,6 +86,26 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
   const [parseMessage, setParseMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<GradeSubmission | null>(null);
+
+  // Admin Verification state for viewing Google Drive file
+  const [localIsAdmin, setLocalIsAdmin] = useState<boolean>(() => {
+    return Boolean(
+      isAdmin || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('mcu_admin_token'))
+    );
+  });
+  const [showAdminPinModal, setShowAdminPinModal] = useState(false);
+  const [adminPin, setAdminPin] = useState('');
+  const [adminPinError, setAdminPinError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAdmin) setLocalIsAdmin(true);
+  }, [isAdmin]);
+
+  const effectiveIsAdmin = Boolean(
+    localIsAdmin ||
+      isAdmin ||
+      (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('mcu_admin_token'))
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -465,6 +493,40 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {/* View File in Google Drive (Admin Only Button) */}
+            <button
+              type="button"
+              onClick={() => {
+                const targetDriveUrl =
+                  submittedData.googleDriveFileUrl ||
+                  (submittedData.googleDriveFileId
+                    ? `https://drive.google.com/file/d/${submittedData.googleDriveFileId}/view`
+                    : DEFAULT_DRIVE_FOLDER_URL);
+
+                if (effectiveIsAdmin) {
+                  window.open(targetDriveUrl, '_blank', 'noopener,noreferrer');
+                } else {
+                  setShowAdminPinModal(true);
+                }
+              }}
+              className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer ${
+                effectiveIsAdmin
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-200 hover:shadow-lg'
+                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 hover:border-emerald-400'
+              }`}
+            >
+              {effectiveIsAdmin ? (
+                <ExternalLink className="w-4 h-4 text-emerald-100" />
+              ) : (
+                <Lock className="w-4 h-4 text-emerald-600" />
+              )}
+              <span>
+                {lang === 'th'
+                  ? 'เข้าดูไฟล์ใน Google Drive (เฉพาะ Admin)'
+                  : 'View in Google Drive (Admin Only)'}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
@@ -492,6 +554,96 @@ export const GradeReturnForm: React.FC<GradeReturnFormProps> = ({
               {lang === 'th' ? 'ดูตารางรายการที่อัพโหลดแล้ว' : 'View Submitted List'}
             </button>
           </div>
+
+          {/* Admin Verification Modal for Viewing Google Drive */}
+          {showAdminPinModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+              <div className="bg-white rounded-[28px] max-w-sm w-full p-6 shadow-2xl border border-purple-100 space-y-4 text-left">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <h4 className="text-sm font-bold text-[#4a148c]">ยืนยันสิทธิ์ Admin</h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAdminPinModal(false);
+                      setAdminPin('');
+                      setAdminPinError(null);
+                    }}
+                    className="text-slate-400 hover:text-slate-600 text-base cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <p className="text-xs text-[#7b1fa2] leading-relaxed">
+                  สิทธิ์การเข้าถึงไฟล์ใน Google Drive ถูกจำกัดไว้สำหรับผู้ดูแลระบบ (Admin) เท่านั้น กรุณากรอกรหัสผ่าน Admin PIN เพื่อเปิดไฟล์
+                </p>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (adminPin.trim() === 'admin2569') {
+                      const token = btoa('admin2569');
+                      sessionStorage.setItem('mcu_admin_token', token);
+                      setLocalIsAdmin(true);
+                      if (onAdminLoginSuccess) onAdminLoginSuccess(token);
+                      setShowAdminPinModal(false);
+                      setAdminPin('');
+                      setAdminPinError(null);
+
+                      const targetDriveUrl =
+                        submittedData?.googleDriveFileUrl ||
+                        (submittedData?.googleDriveFileId
+                          ? `https://drive.google.com/file/d/${submittedData.googleDriveFileId}/view`
+                          : DEFAULT_DRIVE_FOLDER_URL);
+
+                      window.open(targetDriveUrl, '_blank', 'noopener,noreferrer');
+                    } else {
+                      setAdminPinError('รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง');
+                    }
+                  }}
+                  className="space-y-3"
+                >
+                  <input
+                    type="password"
+                    value={adminPin}
+                    onChange={(e) => setAdminPin(e.target.value)}
+                    placeholder="กรอกรหัสผ่าน Admin PIN"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-purple-200 text-[#4a148c] text-sm font-semibold outline-none focus:border-[#ec407a] focus:ring-2 focus:ring-pink-200"
+                    autoFocus
+                  />
+
+                  {adminPinError && (
+                    <p className="text-xs text-rose-600 font-semibold">{adminPinError}</p>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAdminPinModal(false);
+                        setAdminPin('');
+                        setAdminPinError(null);
+                      }}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl btn-mcu-primary text-white text-xs font-bold shadow-md cursor-pointer"
+                    >
+                      ยืนยันและเปิด Drive
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Main Submission Form */
